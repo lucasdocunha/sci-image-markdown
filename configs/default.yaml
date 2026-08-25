@@ -1,0 +1,78 @@
+# Default Configuration for sci-image-markdown (Task 2)
+
+project_name: "sci-image-markdown"
+experiment_name: "qwen2_5_vl_3b_qlora_baseline"
+seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  splits_dir: "data/splits"
+  train_file: "data/processed/train.jsonl"
+  val_file: "data/processed/val.jsonl"
+  test_file: "data/processed/test.jsonl"
+  image_folder: "data/raw/images"
+  max_image_resolution: 1024
+  min_image_resolution: 256
+  system_prompt: "You are an expert scientific figure analyzer. Your task is to extract the exact data points and values plotted in the given scientific figure panel and format them into a structured Markdown table with proper column headers."
+
+model:
+  name_or_path: "Qwen/Qwen2.5-VL-3B-Instruct"
+  model_type: "qwen2_5_vl"
+  trust_remote_code: true
+  torch_dtype: "bfloat16"
+  attn_implementation: "flash_attention_2"
+  use_cache: false
+
+training:
+  method: "qlora"  # 'qlora', 'lora', 'full'
+  output_dir: "outputs/checkpoints"
+  num_train_epochs: 5
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  logging_steps: 10
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_f1_score"
+  greater_is_better: true
+  bf16: true
+  fp16: false
+  dataloader_num_workers: 4
+  gradient_checkpointing: true
+  report_to: "none"  # 'wandb', 'tensorboard', or 'none'
+
+peft:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "bfloat16"
+  bnb_4bit_use_double_quant: true
+
+evaluation:
+  batch_size: 4
+  max_new_tokens: 1024
+  temperature: 0.0
+  do_sample: false
+  numerical_relative_tolerance: 0.05
+  output_eval_dir: "outputs/eval_results"
