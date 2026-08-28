@@ -27,6 +27,7 @@ class TablePredictor:
 
         eval_cfg = cfg.get("evaluation", {})
         data_cfg = cfg.get("data", {})
+        self.max_image_resolution = data_cfg.get("max_image_resolution", 280)
 
         self.extractor = QwenVLTableExtractor(
             model=self.model,
@@ -41,7 +42,10 @@ class TablePredictor:
         if isinstance(image_input, str):
             image = Image.open(image_input).convert("RGB")
         else:
-            image = image_input
+            image = image_input.copy() if hasattr(image_input, "copy") else image_input
+
+        if self.max_image_resolution:
+            image.thumbnail((self.max_image_resolution, self.max_image_resolution))
 
         raw_output = self.extractor.predict(image)
         table_block = extract_markdown_table_block(raw_output) or raw_output

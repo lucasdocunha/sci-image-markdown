@@ -47,7 +47,10 @@ Thumbs.db
 # Scratch / Local dev & Data
 .scratch/
 *.local
+*.log
+*.pid
 data/
 outputs/
 .pytest_cache/
+
 

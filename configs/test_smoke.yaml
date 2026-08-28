@@ -1,0 +1,70 @@
+project_name: "sci-image-markdown"
+experiment_name: "qwen2_vl_2b_smoke_test"
+seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed_smoke"
+  train_file: "data/processed_smoke/train.jsonl"
+  val_file: "data/processed_smoke/val.jsonl"
+  test_file: "data/processed_smoke/test.jsonl"
+  image_folder: "data/processed_smoke/images"
+  max_image_resolution: 224
+  min_image_resolution: 128
+  max_table_chars: 1000
+  system_prompt: "You are an expert scientific figure analyzer. Extract data into a Markdown table."
+
+model:
+  name_or_path: "Qwen/Qwen2-VL-2B-Instruct"
+  model_type: "qwen2_vl"
+  trust_remote_code: true
+  torch_dtype: "float16"
+  attn_implementation: "sdpa"
+  use_cache: false
+
+training:
+  method: "qlora"
+  optim: "paged_adamw_8bit"
+  output_dir: "outputs/test_checkpoints"
+  num_train_epochs: 1
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 1
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "constant"
+  warmup_steps: 0
+  weight_decay: 0.0
+  logging_steps: 1
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  save_total_limit: 1
+  load_best_model_at_end: false
+  bf16: false
+  fp16: true
+  dataloader_num_workers: 0
+  gradient_checkpointing: true
+  report_to: "none"
+
+peft:
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.0
+  bias: "none"
+  task_type: "CAUSAL_LM"
+  target_modules:
+    - "q_proj"
+    - "v_proj"
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_use_double_quant: true
+
+evaluation:
+  batch_size: 1
+  max_new_tokens: 256
+  temperature: 0.0
+  do_sample: false
+  numerical_relative_tolerance: 0.05
+  output_eval_dir: "outputs/test_eval_results"

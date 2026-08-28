@@ -80,8 +80,27 @@ python train.py --config configs/default.yaml --model-config configs/models/qwen
 ### 4. Evaluate Benchmark
 
 ```bash
-python evaluate.py --config configs/default.yaml --test-file data/processed/test.jsonl
+# Run full evaluation comparing Base Model vs Fine-Tuned LoRA:
+bash run_eval_both.sh
 ```
+
+---
+
+## 📊 Benchmark Results
+
+Evaluated on 373 independent test figure images from **Sci-ImageMiner**:
+
+| Metric | Base Model (Zero-Shot) | Fine-Tuned (LoRA) | Delta |
+| :--- | :---: | :---: | :---: |
+| **Valid Table Rate** | 88.74% | **99.73%** | **+10.99%** |
+| **Cell Recall ($\le 5\%$)** | 35.78% | **48.22%** | **+12.45%** |
+| **Cell RMSE** | 2.6635 | **1.0308** | **-1.6327** |
+| **Edit Similarity** | 0.2757 | **0.3010** | **+0.0253** |
+| **ROUGE-L** | 0.2066 | **0.2395** | **+0.0329** |
+
+👉 See the complete report, metric explanations, and qualitative comparisons in [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md).
+
+---
 
 ### 5. Run Single Image Inference
 
