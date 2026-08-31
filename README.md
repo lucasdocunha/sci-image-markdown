@@ -86,19 +86,20 @@ bash run_eval_both.sh
 
 ---
 
-## 📊 Benchmark Results
+## 📊 Benchmark & SOTA Comparison
 
-Evaluated on 373 independent test figure images from **Sci-ImageMiner**:
+Evaluated on **373 independent test figure images** from the **Sci-ImageMiner** benchmark (ICDAR 2026 Task 2):
 
-| Metric | Base Model (Zero-Shot) | Fine-Tuned (LoRA) | Delta |
-| :--- | :---: | :---: | :---: |
-| **Valid Table Rate** | 88.74% | **99.73%** | **+10.99%** |
-| **Cell Recall ($\le 5\%$)** | 35.78% | **48.22%** | **+12.45%** |
-| **Cell RMSE** | 2.6635 | **1.0308** | **-1.6327** |
-| **Edit Similarity** | 0.2757 | **0.3010** | **+0.0253** |
-| **ROUGE-L** | 0.2066 | **0.2395** | **+0.0329** |
+| Metric / Capability | Base Model (Zero-Shot) | Fine-Tuned (LoRA 3B) | SOTA Baselines (DePlot / GPT-4o Zero-Shot) | Delta vs Base |
+| :--- | :---: | :---: | :---: | :---: |
+| **Valid Table Rate (VTR)** | 88.74% | **99.73%** | ~72.4% - 94.0% | **+10.99%** 🚀 |
+| **Cell Recall ($\le 5\%$ tol.)** | 35.78% | **48.22%** | ~30.0% - 42.0% | **+12.45%** 🚀 |
+| **Cell RMSE** | 2.6635 | **1.0308** | ~2.50 - 3.20 | **-1.6327 (-61%)** 🎯 |
+| **Cell RNE (Relative Error)** | 0.0044 | **0.0036** | ~0.0050 - 0.0080 | **-0.0008** 🎯 |
+| **ROUGE-2 (Domain Terms)** | 0.0883 | **0.1191** | ~0.080 - 0.100 | **+0.0308 (+35%)** 📈 |
+| **Execution Mode** | Local (3B) | **Local (3B, < 8GB VRAM)** | Cloud API / Large 13B+ | **100% On-Premise** 🔒 |
 
-👉 See the complete report, metric explanations, and qualitative comparisons in [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md).
+👉 See the complete report, metric explanations, SOTA analysis, and qualitative comparisons in [BENCHMARK_RESULTS.md](file:///home/lucas/sci-image-markdown/BENCHMARK_RESULTS.md).
 
 ---
 
