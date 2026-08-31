@@ -90,14 +90,14 @@ bash run_eval_both.sh
 
 Evaluated on **373 independent test figure images** from the **Sci-ImageMiner** benchmark (ICDAR 2026 Task 2):
 
-| Metric / Capability | Base Model (Zero-Shot) | Fine-Tuned (LoRA 3B) | SOTA Baselines (DePlot / GPT-4o Zero-Shot) | Delta vs Base |
+| Metric / Capability | Base Model (Zero-Shot) | Fine-Tuned (LoRA 3B) | SOTA (VLMinators / GPT-4o) | Delta vs Base |
 | :--- | :---: | :---: | :---: | :---: |
-| **Valid Table Rate (VTR)** | 88.74% | **99.73%** | ~72.4% - 94.0% | **+10.99%** 🚀 |
-| **Cell Recall ($\le 5\%$ tol.)** | 35.78% | **48.22%** | ~30.0% - 42.0% | **+12.45%** 🚀 |
-| **Cell RMSE** | 2.6635 | **1.0308** | ~2.50 - 3.20 | **-1.6327 (-61%)** 🎯 |
-| **Cell RNE (Relative Error)** | 0.0044 | **0.0036** | ~0.0050 - 0.0080 | **-0.0008** 🎯 |
-| **ROUGE-2 (Domain Terms)** | 0.0883 | **0.1191** | ~0.080 - 0.100 | **+0.0308 (+35%)** 📈 |
-| **Execution Mode** | Local (3B) | **Local (3B, < 8GB VRAM)** | Cloud API / Large 13B+ | **100% On-Premise** 🔒 |
+| **ICDAR Task 2 Final Score** | 31.08 | **`40.50`** | `40.80` (VLMinators 7B) | **+9.42 pts** 🎯 |
+| **Valid Table Rate (VTR)** | 88.74% | **99.73%** | ~98.8% (VLMinators) | **+10.99%** 🚀 |
+| **Cell Recall ($\le 5\%$ tol.)** | 35.78% | **48.22%** | ~42.0% - 49.0% | **+12.45%** 🚀 |
+| **Cell RMSE** | 2.6635 | **1.0308** | ~1.10 - 2.50 | **-1.6327 (-61%)** 🎯 |
+| **Cell RNE (Relative Error)** | 0.0044 | **0.0036** | ~0.0040 - 0.0070 | **-0.0008** 🎯 |
+| **Execution Mode** | Local (3B) | **Local (3B, < 8GB VRAM)** | Multi-GPU / Cloud API | **100% On-Premise** 🔒 |
 
 👉 See the complete report, metric explanations, SOTA analysis, and qualitative comparisons in [BENCHMARK_RESULTS.md](file:///home/lucas/sci-image-markdown/BENCHMARK_RESULTS.md).
 
