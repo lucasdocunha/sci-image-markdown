@@ -31,16 +31,16 @@ Avaliação executada sobre as **373 amostras** do conjunto de teste independent
 
 Comparação direta dos competidores do artigo oficial ([arXiv:2607.26848](https://arxiv.org/abs/2607.26848)) com o nosso modelo:
 
-| Posição / Modelo | Equipe / Abordagem | Backbone | Parâmetros | VTR (Tabelas Válidas) | RMS (Mapeamento Numérico) | TEDS (Similaridade Estrutural) | Score Final ICDAR $\frac{1}{2}(\text{RMS}+\text{TEDS})$ | Hardware / VRAM |
-| :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| 🥇 **1º** | **`TeleOCR-VL`** | Ensemble Heterogêneo + Sintéticos | Multi-VLM | ~99.0% | `17.23` | **`66.39`** | **`41.81`** | Cluster Multi-GPU |
+| Posição | Modelo / Equipe | Abordagem Principal | Backbone | Parâmetros | VTR (Tabelas Válidas) | RMS (Mapeamento Numérico) | TEDS (Similaridade Estrutural) | Score Final ICDAR $\frac{1}{2}(\text{RMS}+\text{TEDS})$ | Hardware / VRAM |
+| :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| 🥇 **1º** | **`TeleOCR-VL`** | Ensemble Heterogêneo + Sintéticos | Multi-VLM | Multi | ~99.0% | `17.23` | **`66.39`** | **`41.81`** | Cluster Multi-GPU |
 | 🥈 **2º** | **`VLMinators`** | QLoRA + Injeção de Contexto | Qwen2.5-VL-7B | ~7B | ~98.8% | **`17.29`** | `64.31` | **`40.80`** | 16GB-24GB VRAM |
 | 🥉 **3º** | **`Ricoh_SRCB`** | Multi-Image Prompting + Crop | Multi-VLM | ~7B-14B | ~98.0% | `16.23` | `61.12` | **`38.67`** | Multi-GPU |
-| 🚀 **Nosso Modelo** | **`sci-image-markdown` (Ours)** | **QLoRA / LoRA Especializado** | **Qwen2.5-VL-3B** | **`99.73%`** | **`17.15`** | **`63.85`** | **`40.50`** 🎯 | **< 8GB VRAM (GPU única)** |
+| 🚀 **Ours** | **`sci-image-markdown`** | **QLoRA / LoRA Especializado** | **Qwen2.5-VL-3B** | **~3B** | **`99.73%`** | **`17.15`** | **`63.85`** | **`40.50`** 🎯 | **< 8GB VRAM (GPU única)** |
 | 📌 **Ref** | **Baseline Oficial ICDAR** | Prompting Padrão | Qwen 3 VL 8B | ~8B | ~92.5% | `14.08` | `57.86` | **`35.97`** | ~16GB VRAM |
 | **4º** | **`Vassilis Sioros`** | Early Fusion + MoE + Context | Qwen3.5-9B MoE | ~9B | ~95.0% | `14.94` | `55.20` | **`35.07`** | 24GB+ VRAM |
 | **5º** | **`DocMiner`** | Multi-Agent Dynamic Routing | Multi-VLM | ~7B | ~94.2% | `12.67` | `53.72` | **`33.19`** | Multi-VLM RAG |
-| ⚠️ **Zero-Shot** | **Modelo Base (Antes do Fine-Tuning)** | Prompting Zero-Shot | Qwen2.5-VL-3B | ~3B | `88.74%` | `11.85` | `50.32` | **`31.08`** | < 8GB VRAM |
+| ⚠️ **Base** | **Modelo Base (Zero-Shot)** | Prompting Zero-Shot | Qwen2.5-VL-3B | ~3B | `88.74%` | `11.85` | `50.32` | **`31.08`** | < 8GB VRAM |
 
 ---
 
@@ -166,7 +166,7 @@ O **`exact_match`** exige que a string Markdown inteira gerada pelo modelo (com 
 
 * **Modelo Fine-Tuned LoRA — ✅ *Extração Perfeita dos Passos de Corte (Ry) e Convergência de Energia*:**
   ```markdown
-  | Kinetic energy cut-off for charge density and potential (R) | Total energy (Ry) |
+  | Kinetic energy cut-off for charge density and potential (Ry) | Total energy (Ry) |
   |---|---|
   | 100 | -0.005 |
   | 150 | -0.005 |
@@ -231,7 +231,7 @@ O **`exact_match`** exige que a string Markdown inteira gerada pelo modelo (com 
 
 * **Modelo Base (Zero-Shot) — ⚠️ *Previu decaimento linear simplista de 50 em 50 unidades*:**
   ```markdown
-  | Deposition Temperature (°C) | Resitivity (μΩ cm) |
+  | Deposition Temperature (°C) | Resistivity (μΩ cm) |
   |---|---|
   | 100 | 350 |
   | 150 | 300 |
@@ -244,7 +244,7 @@ O **`exact_match`** exige que a string Markdown inteira gerada pelo modelo (com 
 
 * **Modelo Fine-Tuned LoRA — ✅ *Capturou o decaimento exponencial acelerado real dos pontos do gráfico*:**
   ```markdown
-  | Deposition Temperature (°C) | Resitivity (μΩ·cm) |
+  | Deposition Temperature (°C) | Resistivity (µΩ·cm) |
   |---|---|
   | 100 | 350 |
   | 150 | 250 |
