@@ -8,7 +8,6 @@ import click
 import torch
 from transformers import (
     AutoProcessor,
-    AutoModelForCausalLM,
     AutoModelForImageTextToText,
     Qwen2VLForConditionalGeneration,
     Qwen2_5_VLForConditionalGeneration,
@@ -31,8 +30,8 @@ def main(config: str, adapter_path: str, output_dir: str, torch_dtype: str, devi
     """Merges a trained LoRA adapter into the base vision-language model."""
     cfg = load_config(config) if os.path.exists(config) else {}
     model_cfg = cfg.get("model", {})
-    base_model_name = model_cfg.get("name_or_path", "Qwen/Qwen2-VL-2B-Instruct")
-    model_type = model_cfg.get("model_type", "qwen2_vl")
+    base_model_name = model_cfg.get("name_or_path", "Qwen/Qwen2.5-VL-3B-Instruct")
+    model_type = model_cfg.get("model_type", "qwen2_5_vl")
     trust_remote_code = model_cfg.get("trust_remote_code", True)
 
     dtype = torch.bfloat16 if torch_dtype == "bfloat16" else torch.float16
@@ -54,8 +53,6 @@ def main(config: str, adapter_path: str, output_dir: str, torch_dtype: str, devi
         base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(base_model_name, **model_kwargs)
     elif "qwen2" in model_type or "qwen" in model_type or "Qwen2" in base_model_name:
         base_model = Qwen2VLForConditionalGeneration.from_pretrained(base_model_name, **model_kwargs)
-    elif model_type == "florence2":
-        base_model = AutoModelForCausalLM.from_pretrained(base_model_name, **model_kwargs)
     else:
         base_model = AutoModelForImageTextToText.from_pretrained(base_model_name, **model_kwargs)
 

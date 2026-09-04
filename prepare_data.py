@@ -5,6 +5,7 @@ processing raw local annotations, or generating synthetic demo data.
 """
 
 import os
+import shutil
 import json
 import random
 import urllib.request
@@ -66,10 +67,6 @@ def create_synthetic_demo_data(output_dir: str, num_samples: int = 10):
             "id": f"synth_{i:03d}",
             "image": os.path.join("images", img_name),
             "table": markdown_table,
-            "metadata": {
-                "chart_type": "line_plot",
-                "domain": "ALD_temperature_window"
-            }
         })
 
     random.seed(42)
@@ -166,12 +163,6 @@ def download_and_process_hf_dataset(
                 "table": combined_table,
                 "img_url": img_url,
                 "img_dest": img_dest,
-                "metadata": {
-                    "classification": rec.get("classification"),
-                    "subdomain": rec.get("subdomain"),
-                    "caption": rec.get("caption"),
-                    "figure_number": rec.get("figure_number"),
-                }
             })
 
         if max_samples_per_split:
@@ -190,11 +181,17 @@ def download_and_process_hf_dataset(
         processed_records = []
         for s in table_samples:
             if os.path.exists(s["img_dest"]):
+                proc_img_dest = os.path.join(processed_dir, "images", os.path.basename(s["img_dest"]))
+                os.makedirs(os.path.dirname(proc_img_dest), exist_ok=True)
+                if not os.path.exists(proc_img_dest):
+                    try:
+                        os.link(s["img_dest"], proc_img_dest)
+                    except OSError:
+                        shutil.copyfile(s["img_dest"], proc_img_dest)
                 processed_records.append({
                     "id": s["id"],
                     "image": s["image"],
                     "table": s["table"],
-                    "metadata": s["metadata"],
                 })
 
         out_path = os.path.join(processed_dir, out_filename)
@@ -211,6 +208,7 @@ def download_and_process_hf_dataset(
 @click.option("--num-samples", default=10, help="Number of synthetic samples to generate if --create-synthetic is set.")
 @click.option("--download-hf", is_flag=True, default=False, help="Download official Sci-ImageMiner dataset from Hugging Face.")
 @click.option("--max-samples", default=None, type=int, help="Optional max samples per split when downloading from Hugging Face.")
+@click.option("--num-workers", default=16, type=int, help="Number of concurrent download threads.")
 def main(
     raw_dir: str,
     processed_dir: str,
@@ -218,6 +216,7 @@ def main(
     num_samples: int,
     download_hf: bool,
     max_samples: Optional[int],
+    num_workers: int,
 ):
     """Prepares Sci-Image dataset splits for training and evaluation."""
     os.makedirs(processed_dir, exist_ok=True)
@@ -233,6 +232,7 @@ def main(
             raw_dir=raw_dir,
             processed_dir=processed_dir,
             max_samples_per_split=max_samples,
+            num_workers=num_workers,
         )
         return
 

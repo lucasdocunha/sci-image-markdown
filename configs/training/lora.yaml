@@ -1,7 +1,0 @@
-training:
-  method: "lora"
-  bf16: true
-  fp16: false
-
-quantization:
-  load_in_4bit: false

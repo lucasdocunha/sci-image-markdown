@@ -1,11 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-cd /home/lucas/sci-image-markdown
+cd /home/lucas/masters/sci-image-markdown
 
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export PYTHONUNBUFFERED=1
-PYTHON="/home/lucas/miniconda3/envs/DeepLearning/bin/python"
+PYTHON=".venv/bin/python"
 
 echo "================================================================================"
 echo "  Sci-Image-Markdown: Full Benchmark Evaluation (Base vs Fine-Tuned LoRA)      "

@@ -1,13 +1,12 @@
 """
 Model loader and PEFT / Quantization configuration.
-Supports Qwen2-VL, Qwen2.5-VL, Florence-2, and vision-language architectures.
+Supports Qwen2.5-VL and Qwen2-VL vision-language architectures with 4-bit QLoRA.
 """
 
 from typing import Any, Dict, Optional, Tuple
 import torch
 from transformers import (
     AutoProcessor,
-    AutoModelForCausalLM,
     AutoModelForImageTextToText,
     BitsAndBytesConfig,
     Qwen2VLForConditionalGeneration,
@@ -62,8 +61,8 @@ def load_model_and_processor(
 ) -> Tuple[Any, Any]:
     """Loads model and processor with optional LoRA / QLoRA wrapping."""
     model_cfg = cfg.get("model", {})
-    model_name = model_cfg.get("name_or_path", "Qwen/Qwen2-VL-2B-Instruct")
-    model_type = model_cfg.get("model_type", "qwen2_vl")
+    model_name = model_cfg.get("name_or_path", "Qwen/Qwen2.5-VL-3B-Instruct")
+    model_type = model_cfg.get("model_type", "qwen2_5_vl")
     trust_remote_code = model_cfg.get("trust_remote_code", True)
 
     logger.info(f"Loading processor for: {model_name}")
@@ -96,8 +95,6 @@ def load_model_and_processor(
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, **kwargs)
     elif "qwen2" in model_type or "qwen" in model_type or "Qwen2" in model_name:
         model = Qwen2VLForConditionalGeneration.from_pretrained(model_name, **kwargs)
-    elif model_type == "florence2":
-        model = AutoModelForCausalLM.from_pretrained(model_name, **kwargs)
     else:
         model = AutoModelForImageTextToText.from_pretrained(model_name, **kwargs)
 
