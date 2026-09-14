@@ -24,6 +24,31 @@ from ..utils.logging import setup_logger
 
 logger = setup_logger(__name__)
 
+# Qwen2-VL / Qwen2.5-VL encode a 28x28 pixel patch per visual token after the 2x2
+# spatial merge, so a token budget maps to a pixel budget by this factor.
+PIXELS_PER_VISUAL_TOKEN = 28 * 28
+
+
+def supports_bfloat16() -> bool:
+    """True when the current CUDA device has native bf16 (compute capability 8.0+).
+
+    Turing cards (T4, RTX 20xx) and older do not. A Colab free-tier T4 is the
+    common case, and configs/training/qlora.yaml asks for bfloat16, so without
+    this guard that config would select a dtype the device cannot run natively.
+    SciImageTableTrainer already downgrades bf16 for the same reason; model and
+    quantization dtypes have to follow, or the two disagree.
+    """
+    return torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
+
+
+def _resolve_dtype(requested: Optional[str], what: str) -> torch.Tensor.dtype:
+    """Maps a configured dtype name to a torch dtype the device can actually run."""
+    if requested == "bfloat16":
+        if supports_bfloat16():
+            return torch.bfloat16
+        logger.info(f"{what}: bfloat16 requested but device lacks native support; using float16.")
+    return torch.float16
+
 
 def build_quantization_config(cfg: Dict[str, Any]) -> Optional[BitsAndBytesConfig]:
     """Constructs BitsAndBytesConfig for 4-bit / 8-bit QLoRA."""
@@ -31,7 +56,7 @@ def build_quantization_config(cfg: Dict[str, Any]) -> Optional[BitsAndBytesConfi
     if not q_cfg.get("load_in_4bit", False):
         return None
 
-    compute_dtype = torch.bfloat16 if q_cfg.get("bnb_4bit_compute_dtype") == "bfloat16" else torch.float16
+    compute_dtype = _resolve_dtype(q_cfg.get("bnb_4bit_compute_dtype"), "bnb_4bit_compute_dtype")
 
     return BitsAndBytesConfig(
         load_in_4bit=True,
@@ -66,14 +91,31 @@ def load_model_and_processor(
     trust_remote_code = model_cfg.get("trust_remote_code", True)
 
     logger.info(f"Loading processor for: {model_name}")
-    processor = AutoProcessor.from_pretrained(
-        model_name,
-        trust_remote_code=trust_remote_code,
-    )
+    processor_kwargs: Dict[str, Any] = {"trust_remote_code": trust_remote_code}
+
+    # Resolution budget is expressed in visual tokens and converted to pixels here.
+    # Setting it on the processor is what keeps training and inference symmetric:
+    # both paths (collator and extractor) go through this same processor instance.
+    data_cfg = cfg.get("data", {})
+    patch_area = PIXELS_PER_VISUAL_TOKEN
+    min_tokens = data_cfg.get("min_visual_tokens")
+    max_tokens = data_cfg.get("max_visual_tokens")
+    if min_tokens is not None:
+        processor_kwargs["min_pixels"] = int(min_tokens) * patch_area
+    if max_tokens is not None:
+        processor_kwargs["max_pixels"] = int(max_tokens) * patch_area
+
+    processor = AutoProcessor.from_pretrained(model_name, **processor_kwargs)
+
+    if min_tokens is not None or max_tokens is not None:
+        logger.info(
+            f"Visual token budget: min={min_tokens}, max={max_tokens} "
+            f"(min_pixels={processor_kwargs.get('min_pixels')}, max_pixels={processor_kwargs.get('max_pixels')})"
+        )
 
     load_4bit = cfg.get("quantization", {}).get("load_in_4bit", False) or (is_training and cfg.get("training", {}).get("method") == "qlora")
     bnb_config = build_quantization_config(cfg) if load_4bit else None
-    torch_dtype = torch.bfloat16 if model_cfg.get("torch_dtype") == "bfloat16" else torch.float16
+    torch_dtype = _resolve_dtype(model_cfg.get("torch_dtype"), "model torch_dtype")
 
     attn_impl = model_cfg.get("attn_implementation")
     if attn_impl == "flash_attention_2" and not (torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8):

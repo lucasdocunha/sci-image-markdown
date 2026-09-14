@@ -12,8 +12,18 @@ data:
   val_file: "data/processed/val.jsonl"
   test_file: "data/processed/test.jsonl"
   image_folder: "data/raw/images"
-  max_image_resolution: 280
-  min_image_resolution: 128
+  # Resolution budget, in Qwen visual tokens (1 token = a 28x28 pixel patch).
+  # Applied on the processor in load_model_and_processor, so training and
+  # inference share one mechanism. Override per run with --override.
+  #   100 tokens ~= 280x280 px   (B0 baseline: the old inference-side thumbnail)
+  #   334 tokens ~= 512x512 px
+  #   752 tokens ~= 768x768 px
+  #  1337 tokens ~= 1024x1024 px
+  # The floor matches Qwen's own default. A higher floor would upscale figures
+  # smaller than it; no Task 2 figure is that small (the smallest is 38 tokens),
+  # so this only avoids a silent behaviour at the low end of the sweep.
+  min_visual_tokens: 4
+  max_visual_tokens: 100
   max_table_chars: 1500
   system_prompt: "You are an expert scientific figure analyzer. Your task is to extract the exact data points and values plotted in the given scientific figure panel and format them into a structured Markdown table with proper column headers."
 

@@ -8,7 +8,7 @@ import click
 from rich.table import Table
 from rich.console import Console
 
-from src.utils.config import load_config, merge_configs
+from src.utils.config import load_config, merge_configs, parse_overrides
 from src.utils.logging import setup_logger
 from src.utils.io import read_jsonl
 from src.metrics.evaluator import TableExtractionEvaluator
@@ -25,6 +25,7 @@ console = Console()
 @click.option("--predictions-file", default=None, help="Optional path to pre-generated predictions JSONL for offline evaluation.")
 @click.option("--output-report", default="outputs/eval_results/report.json", help="Path to save evaluation JSON report.")
 @click.option("--save-predictions", default=None, help="Optional path to save generated predictions JSONL.")
+@click.option("--override", "-o", multiple=True, help="Inline config override, e.g. -o data.max_visual_tokens=752. Repeatable.")
 def main(
     config: str,
     test_file: str,
@@ -32,12 +33,16 @@ def main(
     predictions_file: str,
     output_report: str,
     save_predictions: str,
+    override,
 ):
     """Runs full evaluation and prints domain table extraction metrics."""
     from tqdm import tqdm
     import torch
 
     cfg = load_config(config)
+    if override:
+        cfg = merge_configs(cfg, parse_overrides(override))
+        logger.info(f"Applied {len(override)} inline override(s): {list(override)}")
     eval_cfg = cfg.get("evaluation", {})
     evaluator = TableExtractionEvaluator(rel_tol=eval_cfg.get("numerical_relative_tolerance", 0.05))
 

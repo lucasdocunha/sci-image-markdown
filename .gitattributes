@@ -1,0 +1,11 @@
+# Shell scripts run on the Linux GPU host. CRLF line endings make them fail
+# there with "bad interpreter: /bin/bash^M", so keep them LF in the working
+# tree regardless of the platform they are checked out on.
+*.sh text eol=lf
+
+# Data and config files read by both platforms.
+*.py text
+*.yaml text
+*.yml text
+*.jsonl text
+*.md text

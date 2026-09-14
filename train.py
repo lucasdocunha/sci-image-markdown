@@ -3,7 +3,7 @@ CLI tool for training/fine-tuning Vision-Language Models on Sci-Image dataset.
 """
 
 import click
-from src.utils.config import load_config, merge_configs
+from src.utils.config import load_config, merge_configs, parse_overrides
 from src.utils.logging import setup_logger
 from src.models.loader import load_model_and_processor
 from src.data.dataset import SciImageTableDataset
@@ -16,7 +16,8 @@ logger = setup_logger("train")
 @click.option("--config", default="configs/default.yaml", help="Path to base configuration YAML.")
 @click.option("--model-config", default=None, help="Optional model override configuration YAML.")
 @click.option("--training-config", default=None, help="Optional training override configuration YAML.")
-def main(config: str, model_config: str, training_config: str):
+@click.option("--override", "-o", multiple=True, help="Inline config override, e.g. -o data.max_visual_tokens=752. Repeatable.")
+def main(config: str, model_config: str, training_config: str, override):
     """Fine-tunes a Vision-Language Model on Sci-Image Task 2."""
     cfg = load_config(config)
 
@@ -24,17 +25,18 @@ def main(config: str, model_config: str, training_config: str):
         cfg = merge_configs(cfg, load_config(model_config))
     if training_config:
         cfg = merge_configs(cfg, load_config(training_config))
+    if override:
+        cfg = merge_configs(cfg, parse_overrides(override))
+        logger.info(f"Applied {len(override)} inline override(s): {list(override)}")
 
     logger.info(f"Loaded configuration for experiment: {cfg.get('experiment_name')}")
 
     # Load datasets
     data_cfg = cfg.get("data", {})
-    max_res = data_cfg.get("max_image_resolution", 280)
     train_dataset = SciImageTableDataset(
         data_path=data_cfg.get("train_file", "data/processed/train.jsonl"),
         image_dir=data_cfg.get("image_folder"),
         system_prompt=data_cfg.get("system_prompt"),
-        max_image_resolution=max_res,
     )
     logger.info(f"Loaded {len(train_dataset)} training samples.")
 
@@ -46,7 +48,6 @@ def main(config: str, model_config: str, training_config: str):
                 data_path=val_file,
                 image_dir=data_cfg.get("image_folder"),
                 system_prompt=data_cfg.get("system_prompt"),
-                max_image_resolution=max_res,
             )
             logger.info(f"Loaded {len(eval_dataset)} validation samples.")
         except FileNotFoundError:

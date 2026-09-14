@@ -27,7 +27,6 @@ class TablePredictor:
 
         eval_cfg = cfg.get("evaluation", {})
         data_cfg = cfg.get("data", {})
-        self.max_image_resolution = data_cfg.get("max_image_resolution", 280)
 
         self.extractor = QwenVLTableExtractor(
             model=self.model,
@@ -44,9 +43,8 @@ class TablePredictor:
         else:
             image = image_input.copy() if hasattr(image_input, "copy") else image_input
 
-        if self.max_image_resolution:
-            image.thumbnail((self.max_image_resolution, self.max_image_resolution))
-
+        # No resizing here: the processor's min_pixels/max_pixels budget (set in
+        # load_model_and_processor) handles it, so training and inference agree.
         raw_output = self.extractor.predict(image)
         table_block = extract_markdown_table_block(raw_output) or raw_output
         df, is_valid = parse_markdown_to_dataframe(table_block)

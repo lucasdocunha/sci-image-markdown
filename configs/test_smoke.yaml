@@ -9,8 +9,8 @@ data:
   val_file: "data/processed_smoke/val.jsonl"
   test_file: "data/processed_smoke/test.jsonl"
   image_folder: "data/processed_smoke/images"
-  max_image_resolution: 224
-  min_image_resolution: 128
+  min_visual_tokens: 4
+  max_visual_tokens: 64
   max_table_chars: 1000
   system_prompt: "You are an expert scientific figure analyzer. Extract data into a Markdown table."
 
