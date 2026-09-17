@@ -20,6 +20,8 @@ console = Console()
 
 @click.command()
 @click.option("--config", default="configs/default.yaml", help="Path to base configuration YAML.")
+@click.option("--model-config", default=None, help="Optional model override configuration YAML.")
+@click.option("--training-config", default=None, help="Optional training/data override configuration YAML.")
 @click.option("--test-file", default="data/processed/test.jsonl", help="Path to test dataset JSONL.")
 @click.option("--adapter-path", default=None, help="Optional path to trained PEFT LoRA adapter.")
 @click.option("--predictions-file", default=None, help="Optional path to pre-generated predictions JSONL for offline evaluation.")
@@ -27,6 +29,8 @@ console = Console()
 @click.option("--save-predictions", default=None, help="Optional path to save generated predictions JSONL.")
 def main(
     config: str,
+    model_config: str,
+    training_config: str,
     test_file: str,
     adapter_path: str,
     predictions_file: str,
@@ -38,6 +42,10 @@ def main(
     import torch
 
     cfg = load_config(config)
+    if model_config:
+        cfg = merge_configs(cfg, load_config(model_config))
+    if training_config:
+        cfg = merge_configs(cfg, load_config(training_config))
     eval_cfg = cfg.get("evaluation", {})
     evaluator = TableExtractionEvaluator(rel_tol=eval_cfg.get("numerical_relative_tolerance", 0.05))
 
