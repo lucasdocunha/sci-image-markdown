@@ -18,11 +18,14 @@ class SciImageTableDataset(Dataset):
         self,
         data_path: str,
         image_dir: Optional[str] = None,
-        system_prompt: str = "Extract the plotted data from this figure into a clean Markdown table."
+        system_prompt: str = "Extract the plotted data from this figure into a clean Markdown table.",
+        max_image_resolution: Optional[int] = None,
+        **kwargs: Any,
     ):
         self.data_path = data_path
         self.image_dir = image_dir
         self.system_prompt = system_prompt
+        self.max_image_resolution = max_image_resolution
 
         if not os.path.exists(data_path):
             raise FileNotFoundError(f"Dataset file not found: {data_path}")
@@ -61,6 +64,8 @@ class SciImageTableDataset(Dataset):
 
         image_path = self._resolve_image_path(item["image"])
         image = Image.open(image_path).convert("RGB")
+        if self.max_image_resolution:
+            image.thumbnail((self.max_image_resolution, self.max_image_resolution))
 
         markdown_table = item.get("table", item.get("markdown", item.get("target", "")))
         sample_id = item.get("id", str(idx))

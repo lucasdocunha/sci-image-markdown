@@ -12,6 +12,6 @@ training:
     lambda_metric: 0.3        # Weight given to the ICDAR metric loss (0.0 to 1.0)
     rel_tol: 0.05             # Relative numerical error tolerance for RMS (5%)
     temperature: 0.7          # Sampling temperature for exploration in SCST
-    max_gen_tokens: 512       # Maximum generation tokens during SCST training
+    max_gen_tokens: 300       # Maximum generation tokens during SCST training (optimal for 6GB VRAM)
     numeric_weight: 3.0       # Weight for numerical tokens in token-weighted mode
     structural_weight: 2.0    # Weight for table structural tokens (| and ---)
