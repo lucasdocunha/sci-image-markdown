@@ -66,10 +66,19 @@ def load_model_and_processor(
     trust_remote_code = model_cfg.get("trust_remote_code", True)
 
     logger.info(f"Loading processor for: {model_name}")
-    processor = AutoProcessor.from_pretrained(
-        model_name,
-        trust_remote_code=trust_remote_code,
-    )
+    processor_kwargs = {"trust_remote_code": trust_remote_code}
+    data_cfg = cfg.get("data", {})
+    min_pixels = data_cfg.get("min_pixels")
+    max_pixels = data_cfg.get("max_pixels")
+    try:
+        p_kwargs = dict(processor_kwargs)
+        if min_pixels is not None:
+            p_kwargs["min_pixels"] = min_pixels
+        if max_pixels is not None:
+            p_kwargs["max_pixels"] = max_pixels
+        processor = AutoProcessor.from_pretrained(model_name, **p_kwargs)
+    except TypeError:
+        processor = AutoProcessor.from_pretrained(model_name, **processor_kwargs)
 
     load_4bit = cfg.get("quantization", {}).get("load_in_4bit", False) or (is_training and cfg.get("training", {}).get("method") == "qlora")
     bnb_config = build_quantization_config(cfg) if load_4bit else None
@@ -183,9 +192,21 @@ def _memory_efficient_qwen2_vl_forward(
 
             valid_logits = self.lm_head(valid_hidden).float()
 
+            token_weights = kwargs.get("token_weights", getattr(self, "token_weights", None))
+            if token_weights is not None:
+                token_weights = token_weights.to(valid_logits.device)
+                if token_weights.shape[0] < valid_logits.shape[-1]:
+                    token_weights = nn.functional.pad(
+                        token_weights,
+                        (0, valid_logits.shape[-1] - token_weights.shape[0]),
+                        value=1.0,
+                    )
+                elif token_weights.shape[0] > valid_logits.shape[-1]:
+                    token_weights = token_weights[: valid_logits.shape[-1]]
+
             num_items_in_batch = kwargs.get("num_items_in_batch", None)
             reduction = "sum" if num_items_in_batch is not None else "mean"
-            loss = nn.functional.cross_entropy(valid_logits, valid_labels, reduction=reduction)
+            loss = nn.functional.cross_entropy(valid_logits, valid_labels, weight=token_weights, reduction=reduction)
             if reduction == "sum":
                 if torch.is_tensor(num_items_in_batch):
                     num_items_in_batch = num_items_in_batch.to(loss.device)

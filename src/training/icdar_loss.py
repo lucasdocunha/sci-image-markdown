@@ -49,6 +49,10 @@ class ICDARTokenWeightedLoss(nn.Module):
 
         self.register_buffer("token_weights", weights)
 
+    @property
+    def weights(self) -> torch.Tensor:
+        return self.token_weights
+
     def forward(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """Computes weighted cross-entropy loss over target tokens.
         
@@ -65,7 +69,10 @@ class ICDARTokenWeightedLoss(nn.Module):
             return torch.tensor(0.0, device=logits.device, requires_grad=True)
 
         target_ids = torch.where(valid_mask, shift_labels, torch.zeros_like(shift_labels))
-        weights = self.token_weights[target_ids]
+        tw = self.token_weights
+        if tw.shape[0] < shift_logits.shape[-1]:
+            tw = F.pad(tw, (0, shift_logits.shape[-1] - tw.shape[0]), value=1.0)
+        weights = tw[target_ids]
         weights = torch.where(valid_mask, weights, torch.zeros_like(weights))
 
         log_probs = F.log_softmax(shift_logits, dim=-1)
@@ -100,6 +107,31 @@ class ICDARSCSTLoss(nn.Module):
         self.temperature = temperature
         self.max_gen_tokens = max_gen_tokens
 
+    def _find_prompt_end_idx(self, input_ids_row: torch.Tensor, labels_row: Optional[torch.Tensor] = None) -> int:
+        """Finds the index immediately after <|im_start|>assistant\\n."""
+        seq = input_ids_row.tolist()
+        im_start_fn = getattr(self.processor.tokenizer, "convert_tokens_to_ids", None)
+        im_start_id = im_start_fn("<|im_start|>") if im_start_fn else None
+        encode_fn = getattr(self.processor.tokenizer, "encode", None)
+        assistant_ids = encode_fn("assistant", add_special_tokens=False) if encode_fn else []
+
+        if im_start_id is not None and assistant_ids:
+            h = [im_start_id] + assistant_ids
+            h_len = len(h)
+            for j in range(len(seq) - h_len):
+                if seq[j : j + h_len] == h:
+                    offset = h_len
+                    if j + offset < len(seq) and seq[j + offset] == 198:  # newline '\n'
+                        offset += 1
+                    return j + offset
+
+        if labels_row is not None:
+            target_mask = (labels_row != -100).nonzero(as_tuple=True)[0]
+            if len(target_mask) > 0 and target_mask[0].item() > 0:
+                return target_mask[0].item()
+
+        return len(seq) // 2
+
     def compute_scst_sample_loss(
         self,
         model: nn.Module,
@@ -111,23 +143,32 @@ class ICDARSCSTLoss(nn.Module):
         attention_mask = inputs["attention_mask"][sample_idx : sample_idx + 1]
         labels = inputs["labels"][sample_idx : sample_idx + 1]
 
-        # Identify prompt boundary (where labels != -100 begins)
-        target_mask = labels[0] != -100
-        if not target_mask.any():
+        prompt_end_idx = self._find_prompt_end_idx(input_ids[0], labels[0])
+        if prompt_end_idx <= 0 or prompt_end_idx >= input_ids.shape[1]:
             zero_loss = torch.tensor(0.0, device=input_ids.device, requires_grad=True)
             return zero_loss, {"r_sampled": 0.0, "r_greedy": 0.0, "advantage": 0.0}
 
-        prompt_end_idx = (target_mask == True).nonzero(as_tuple=True)[0][0].item()
         prompt_input_ids = input_ids[:, :prompt_end_idx]
         prompt_attention_mask = attention_mask[:, :prompt_end_idx]
         prompt_len = prompt_input_ids.shape[1]
 
-        # Prepare visual kwargs
-        extra_kwargs = {
-            k: v[sample_idx : sample_idx + 1]
-            for k, v in inputs.items()
-            if k not in ("labels", "input_ids", "attention_mask")
-        }
+        # Prepare visual kwargs safely respecting vision patch flatten layout
+        extra_kwargs = {}
+        if "pixel_values" in inputs and "image_grid_thw" in inputs:
+            grid_thw = inputs["image_grid_thw"]
+            patches_per_image = [int(g[0].item() * g[1].item() * g[2].item()) for g in grid_thw]
+            start_patch = sum(patches_per_image[:sample_idx])
+            num_patches = patches_per_image[sample_idx]
+            extra_kwargs["pixel_values"] = inputs["pixel_values"][start_patch : start_patch + num_patches]
+            extra_kwargs["image_grid_thw"] = grid_thw[sample_idx : sample_idx + 1]
+
+        for k, v in inputs.items():
+            if k in ("labels", "input_ids", "attention_mask", "mm_token_type_ids", "pixel_values", "image_grid_thw"):
+                continue
+            if isinstance(v, torch.Tensor) and v.shape[0] == inputs["input_ids"].shape[0]:
+                extra_kwargs[k] = v[sample_idx : sample_idx + 1]
+            else:
+                extra_kwargs[k] = v
 
         # Decode ground truth table string
         target_tokens = input_ids[0, prompt_end_idx:]
@@ -272,8 +313,14 @@ class ICDARMetricLoss(nn.Module):
         metrics_info: Dict[str, float] = {}
 
         if self.loss_type == "token_weighted":
-            out = model(**inputs)
-            total_loss = self.weighted_module(out.logits, inputs["labels"])
+            if sft_loss is not None:
+                total_loss = sft_loss
+            else:
+                out = model(**inputs)
+                if out.logits is not None:
+                    total_loss = self.weighted_module(out.logits, inputs["labels"])
+                else:
+                    total_loss = out.loss
             metrics_info["token_weighted_loss"] = total_loss.item()
             return total_loss, metrics_info
 

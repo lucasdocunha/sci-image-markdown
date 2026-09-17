@@ -128,6 +128,8 @@ class SciImageTableTrainer:
         self.eval_dataset = eval_dataset
         self.cfg = cfg
         self.training_args = build_training_arguments(cfg)
+        if self.eval_dataset is None:
+            self.training_args.eval_strategy = "no"
         self.data_collator = QwenVLDataCollator(processor=self.processor)
 
         # Build ICDAR metric loss module if configured
@@ -147,6 +149,14 @@ class SciImageTableTrainer:
                 structural_weight=m_cfg.get("structural_weight", 2.0),
             )
             logger.info(f"Initialized ICDARMetricLoss (type={actual_type}, lambda={m_cfg.get('lambda_metric', 0.3)})")
+            if hasattr(self.icdar_loss_module, "weighted_module") and self.icdar_loss_module.weighted_module is not None:
+                weights = getattr(self.icdar_loss_module.weighted_module, "token_weights", None)
+                if weights is not None:
+                    setattr(self.model, "token_weights", weights)
+                    if hasattr(self.model, "base_model"):
+                        setattr(self.model.base_model, "token_weights", weights)
+                        if hasattr(self.model.base_model, "model"):
+                            setattr(self.model.base_model.model, "token_weights", weights)
         else:
             self.icdar_loss_module = None
 

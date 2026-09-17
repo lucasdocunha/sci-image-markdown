@@ -37,6 +37,9 @@ class DummyTokenizer:
     def get_vocab(self):
         return self.vocab
 
+    def encode(self, text, add_special_tokens=False):
+        return [self.vocab.get(ch, 0) for ch in text if ch in self.vocab]
+
     def decode(self, token_ids, skip_special_tokens=True):
         rev = {v: k for k, v in self.vocab.items()}
         if isinstance(token_ids, torch.Tensor):
