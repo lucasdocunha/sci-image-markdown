@@ -105,87 +105,85 @@ metrics:
 - valid_table
 ---
 
-# Sci-Image-Markdown: Extrator de Tabelas com Qwen2.5-VL-3B LoRA (Resolução Original Nativa)
+# Sci-Image-Markdown: Extrator de Tabelas com Qwen2.5-VL-3B LoRA (Resolucao Original Nativa)
 
-Adapter fine-tunado com **PEFT LoRA** sobre o modelo base **Qwen2.5-VL-3B-Instruct**, especializado na extração e transcrição direta de dados quantitativos de figuras científicas para tabelas estruturadas em Markdown com resolução de imagem nativa/original.
+Adapter fine-tunado com **PEFT LoRA** sobre o modelo base **Qwen2.5-VL-3B-Instruct**, especializado na extracao e transcricao direta de dados quantitativos de figuras cientificas para tabelas estruturadas em Markdown com resolucao de imagem nativa/original.
 
-Este modelo foi otimizado com a função de perda **ICDAR Metric-Aware Loss** (combinando perdas estruturais e numéricas diferenciáveis com recompensas diretas em VRAM para Table Edit Distance e Cell RMS Error).
+Este modelo foi otimizado com a funcao de perda **ICDAR Metric-Aware Loss** (combinando perdas estruturais e numericas diferenciaveis com recompensas diretas em VRAM para Table Edit Distance e Cell RMS Error).
 
 ---
 
-## ⚡ Uso de GPU e Memória VRAM Durante o Treinamento
+## Uso de GPU e Memoria VRAM Durante o Treinamento
 
-Diferente de pipelines tradicionais que reduzem ou distorcem as figuras científicas, este modelo foi treinado preservando a **resolução vetorial nativa integral** das imagens.
+Diferente de pipelines tradicionais que reduzem ou distorcem as figuras cientificas, este modelo foi treinado preservando a **resolucao vetorial nativa integral** das imagens.
 
-| Modo / Resolução | Resolução Máxima | Grid de Patches de Visão | **VRAM Média Alocada** | VRAM Pico |
+| Modo / Resolucao | Resolucao Maxima | Grid de Patches de Visao | **VRAM Media Alocada** | VRAM Pico |
 | :--- | :---: | :---: | :---: | :---: |
-| **Resolução Reduzida (Baseline)** | 280 px (Downsampling PIL) | ~392×392 máx | **~5,2 GB** | ~6,1 GB |
-| **Resolução Original Nativa (Este Modelo)** | **Original (Sem downsampling)** | **Até 1003520 pixels (~1 MP)** | **~17,2 GB** | **~18,5 GB** |
+| **Resolucao Reduzida (Baseline)** | 280 px (Downsampling PIL) | ~392x392 max | **~5,2 GB** | ~6,1 GB |
+| **Resolucao Original Nativa (Este Modelo)** | **Original (Sem downsampling)** | **Ate 1003520 pixels (~1 MP)** | **~17,2 GB** | **~18,5 GB** |
 
-> **Nota de Hardware:** O treinamento em resolução original foi conduzido em uma **NVIDIA GeForce RTX 3090 (24 GB VRAM)** utilizando quantização **4-bit NF4 (QLoRA)**, otimizador `paged_adamw_8bit` e *Gradient Checkpointing*. A alta alocação de VRAM decorre do número dinâmico de tokens visuais bidimensionais necessários para capturar com máxima fidelidade eixos, marcadores e números minúsculos de gráficos complexos.
+> **Nota de Hardware:** O treinamento em resolucao original foi conduzido em uma **NVIDIA GeForce RTX 3090 (24 GB VRAM)** utilizando quantizacao **4-bit NF4 (QLoRA)**, otimizador `paged_adamw_8bit` e *Gradient Checkpointing*. A alta alocacao de VRAM decorre do numero dinamico de tokens visuais bidimensionais necessarios para capturar com maxima fidelidade eixos, marcadores e numeros minusculos de graficos complexos.
 
 ---
 
-## 📊 Resultados no Conjunto de Teste (373 Figuras Científicas)
+## Resultados no Conjunto de Teste (373 Figuras Cientificas)
 
-Avaliação no benchmark oficial [SciKnowOrg/Sci-ImageMiner](https://huggingface.co/datasets/SciKnowOrg/Sci-ImageMiner) (Tarefa 2: Extração de Tabelas de Dados). Ganhos reportados em **pontos percentuais (pp)**:
+Avaliacao no benchmark oficial [SciKnowOrg/Sci-ImageMiner](https://huggingface.co/datasets/SciKnowOrg/Sci-ImageMiner) (Tarefa 2: Extracao de Tabelas de Dados). Ganhos reportados estritamente em **pontos percentuais (pp)**:
 
-| Métrica | Base Zero-Shot | SFT Padrão | LoRA 280px (Anterior) | **Nosso LoRA (Resolução Original)** | **Ganho vs Base (pp)** | **Ganho vs 280px (pp)** |
+| Metrica | Base Zero-Shot | SFT Padrao | LoRA 280px (Anterior) | **Nosso LoRA (Resolucao Original)** | **Ganho vs Base (pp)** | **Ganho vs 280px (pp)** |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Tabelas Válidas (`valid_table`)** | 88.74% | 99.73% | 99.73% | **{valid_table:.2f}%** | {fmt_pp(valid_table - base_valid)} | {fmt_pp(valid_table - prev_valid)} |
-| **Precisão de Células (`cell_precision`)** | 21.08% | 21.37% | 39.58% | **{cell_p:.2f}%** | {fmt_pp(cell_p - base_cell_p)} | {fmt_pp(cell_p - prev_cell_p)} |
-| **F1-Score de Células (`cell_f1`)** | 18.42% | 20.60% | 34.67% | **{cell_f1:.2f}%** | {fmt_pp(cell_f1 - base_cell_f1)} | {fmt_pp(cell_f1 - prev_cell_f1)} |
+| **Tabelas Validas (`valid_table`)** | 88.74% | 99.73% | 99.73% | **{valid_table:.2f}%** | {fmt_pp(valid_table - base_valid)} | {fmt_pp(valid_table - prev_valid)} |
+| **Precisao de Celulas (`cell_precision`)** | 21.08% | 21.37% | 39.58% | **{cell_p:.2f}%** | {fmt_pp(cell_p - base_cell_p)} | {fmt_pp(cell_p - prev_cell_p)} |
+| **F1-Score de Celulas (`cell_f1`)** | 18.42% | 20.60% | 34.67% | **{cell_f1:.2f}%** | {fmt_pp(cell_f1 - base_cell_f1)} | {fmt_pp(cell_f1 - prev_cell_f1)} |
 | **Similaridade Estrutural (`TEDS`)** | 23.16% | 23.16% | 36.24% | **{teds:.2f}%** | {fmt_pp(teds - base_teds)} | {fmt_pp(teds - prev_teds)} |
 | **ICDAR Numerical RMS** | 48.12% | 48.12% | 51.66% | **{num_rms:.2f}%** | {fmt_pp(num_rms - base_num_rms)} | {fmt_pp(num_rms - prev_num_rms)} |
 | **ICDAR Score Composto** | 35.64% | 35.64% | 43.95% | **{icdar_comp:.2f}%** | {fmt_pp(icdar_comp - base_comp)} | {fmt_pp(icdar_comp - prev_comp)} |
 
 ---
 
-## 🧠 Explicação Didática da Loss: Loss Padrão vs. Nossa Loss
+## Comparativo: Loss Padrao vs. Nossa Loss
 
-### 1. A Diferença Simples: Loss Padrão vs. Nossa Loss
+### 1. O que e a Loss Padrao (Cross-Entropy / SFT)
 
-| Característica | Loss Padrão (Cross-Entropy / SFT) | Nossa Loss (ICDAR Metric-Aware Loss) |
-| :--- | :--- | :--- |
-| **Peso dos Tokens** | **Todos os tokens têm o mesmo peso ($1.0$).** | **Ponderação Seletiva guiada pela relevância:**<br>• Números (`0-9`, `.`, `-`): **Peso 3,0×**<br>• Estrutura (`|`, `\n`, `---`): **Peso 2,0×**<br>• Texto descritivo/espaços: **Peso 1,0×** |
-| **Como enxerga o erro** | Trata errar uma letra textual qualquer (`"Tempo"` $\rightarrow$ `"Tempa"`) com a **mesma penalidade** de errar um número crítico de um gráfico (`"1.2"` $\rightarrow$ `"9.8"`). | Penaliza o erro numérico com **3 vezes mais força** e o esquecimento de um delimitador de coluna com **2 vezes mais força**. |
-| **Comportamento do Modelo** | O modelo pode atingir loss muito baixa prevendo bem palavras comuns e pontuação, mas continuar errando as medidas do gráfico ou quebrando a tabela. | O modelo é forçado a priorizar a exatidão dos eixos, ticks e a integridade de todas as colunas. |
+No treinamento supervisionado tradicional, a funcao de perda trata todos os tokens com exatamente o mesmo peso (1.0).
 
----
+- **Falta de foco numerico:** O modelo sofre a mesma penalidade se errar uma palavra descritiva comum (por exemplo, "Tempo" para "Tempa") ou se errar a coordenada exata de um ponto critico em um grafico (por exemplo, "1.2" para "9.8").
+- **Falta de foco estrutural:** O modelo trata delimitadores de colunas (barras verticais) e quebras de linha com o mesmo peso de espacos em branco. Um unico caractere de coluna ausente inutiliza a tabela inteira, mas gera uma penalidade minima na loss padrao.
+- **Comportamento:** O modelo aparenta estar convergindo com perda baixa porque acerta a maioria dos textos comuns, mas continua gerando dados numericos imprecisos e tabelas malformadas.
 
-### 2. Como ela atua especificamente no LoRA?
+### 2. A Nossa Solucao: ICDAR Metric-Aware Loss
 
-No treinamento com **PEFT QLoRA**, o modelo base `Qwen2.5-VL-3B` permanece **100% congelado em 4-bit (NF4)**. Os únicos parâmetros que aprendem e são atualizados são os adaptadores LoRA (duas matrizes lineares de rank baixo, $A$ e $B$, inseridas nas projeções de atenção $q\_proj, k\_proj, v\_proj, o\_proj$):
+Para resolver esse problema, desenhamos uma funcao de perda que penaliza os erros de forma seletiva de acordo com a importancia de cada token:
 
-1. **Amplificação Seletiva de Gradientes na Retropropagação:**  
-   Quando o modelo comete um erro em um token numérico ou estrutural, a nossa loss multiplica o gradiente do logit por $3.0$ ou $2.0$. Esse gradiente amplificado via regra da cadeia chega diretamente às matrizes treináveis do LoRA.
-2. **Direcionamento da Atenção Visual:**  
-   Esse gradiente forte força os pesos do LoRA a ajustar os padrões de atenção espacial do Vision Transformer, fazendo o modelo "olhar" e focar com muito mais nitidez nas marcações de eixos, legendas e números minúsculos da figura.
-3. **Preservação de Capacidade (Orçamento de Parâmetros):**  
-   O LoRA treina apenas **3,6 milhões de parâmetros** (apenas **0,098%** dos 3,75 bilhões de parâmetros do modelo). Se usássemos a loss padrão, o LoRA gastaria quase toda a sua capacidade aprendendo tarefas fáceis de linguagem natural. Com a nossa loss, **o orçamento de 0,098% de parâmetros é canalizado exatamente para a fidelidade numérica e estrutural**.
+- **Tokens Numericos (Peso 3.0x):** Digitos (0 a 9), pontos decimais e sinais recebem peso 3 vezes maior na retropropagacao, funcionando como um proxy direto para a metrica de RMS Numerico.
+- **Tokens Estruturais (Peso 2.0x):** Barras verticais delimitadoras de colunas, quebras de linha e marcadores de cabecalho recebem peso 2 vezes maior, garantindo que a estrutura da tabela seja rigorosamente respeitada.
+- **Tokens Textuais Comuns (Peso 1.0x):** Textos explicativos e espacos mantem peso padrao unitario.
 
----
+### 3. Como a Loss atua no LoRA
 
-### 3. O Porquê da Escolha (Justificativa Técnica)
+No treinamento com PEFT QLoRA, os pesos do modelo base Qwen2.5-VL-3B permanecem 100% congelados em quantizacao 4-bit (NF4). Apenas as matrizes lineares de baixa dimensao A e B dos adaptadores LoRA (acopladas as projecoes de atencao q_proj, k_proj, v_proj, o_proj) sao atualizadas:
 
-1. **Alinhamento com as Métricas Oficiais (TEDS e RMS):**  
-   O benchmark oficial avalia a árvore estrutural (TEDS) e os dados numéricos (RMS). A Cross-Entropy clássica é agnóstica à semântica tabular. A nossa loss atua como um *surrogate contínuo diferenciável*, treinando o modelo para maximizar exatamente o critério de avaliação.
-2. **Tabelas 100% Válidas (Fim das barras perdidas):**  
-   Ao dobrar o peso de delimitadores (`|`, `---`, `\n`), o modelo aprendeu que esquecer de fechar uma célula inutiliza toda a tabela. O resultado empírico foi atingir **100,00% de tabelas válidas** no conjunto de teste.
-3. **Velocidade Máxima com GPU Tensor Reward:**  
-   As métricas tradicionais (como o algoritmo de Zhang-Shasha do TEDS) rodam na CPU sobre árvores de texto e levariam dezenas de horas se chamadas durante o treino. Ao pré-computar máscaras na VRAM e avaliar a estrutura diretamente sobre tensores de GPU, mantivemos a velocidade nativa da placa gráfica com zero overhead.
+- **Amplificacao Seletiva de Gradientes:** Quando o modelo erra um numero ou uma divisao de coluna, o gradiente resultante e multiplicado por 3.0x ou 2.0x. Pela regra da cadeia, esse erro amplificado e propagado diretamente para as matrizes treinaveis do LoRA.
+- **Direcionamento da Atencao Visual:** Essa forca de gradiente ajusta os vetores de atencao do Vision Transformer, forcando o modelo a concentrar seu foco visual nas coordenadas, eixos, legendas e numeros presentes na imagem cientifica.
+- **Maximizacao do Orcamento de Parametros:** Como o LoRA treina apenas 3,6 milhoes de parametros (apenas 0,098% do modelo total), a nossa loss impede que esse orcamento reduzido seja gasto com linguagem natural trivial, canalizando praticamente todo o aprendizado para a precisao numerica e integridade estrutural.
+
+### 4. Por que dessa Escolha?
+
+- **Alinhamento as Metricas Oficiais:** As competicoes ICDAR avaliam tabelas por meio do TEDS (Tree Edit Distance) e do RMS Numerico. A Cross-Entropy padrao desconhece essas restricoes. A nossa loss atua como um surrogate continuo diferenciavel que alinha o objetivo do treino diretamente ao criterio de teste.
+- **Garantia de Tabelas 100% Validas:** A penalidade duplicada em delimitadores ensinou o modelo a nunca esquecer o fechamento de uma celula, resultando em 100,00% de tabelas validas no conjunto de teste.
+- **Zero Overhead com GPU Tensor Reward:** Em vez de calcular distancias em arvores na CPU (o que travaria o treinamento), a loss opera inteiramente na memoria VRAM da GPU atraves de tensores de contagem e comparacao de mascaras booleanas.
 
 ---
 
-## 🚀 Como Usar para Inferência
+## Como Usar para Inferencia
 
-### Instalação das Dependências
+### Instalacao das Dependencias
 
 ```bash
 pip install torch transformers peft qwen-vl-utils pillow torchvision bitsandbytes
 ```
 
-### Exemplo em Python (Inferência em Resolução Original)
+### Exemplo em Python (Inferencia em Resolucao Original)
 
 ```python
 import torch
@@ -200,7 +198,7 @@ adapter_id = "{HF_REPO_ID}"
 # 1. Carregar processador
 processor = AutoProcessor.from_pretrained(adapter_id)
 
-# 2. Carregar modelo base em 4-bit (compatível com GPUs a partir de 6GB para inferência)
+# 2. Carregar modelo base em 4-bit (compativel com GPUs a partir de 6GB para inferencia)
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_quant_type="nf4",
@@ -218,7 +216,7 @@ base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
 model = PeftModel.from_pretrained(base_model, adapter_id)
 model.eval()
 
-# 4. Processar imagem em resolução original
+# 4. Processar imagem em resolucao original
 image_path = "grafico_cientifico.png"
 image = Image.open(image_path).convert("RGB")
 
@@ -245,21 +243,21 @@ with torch.inference_mode():
         generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
     )[0]
 
-print("--- Tabela Markdown Extraída ---")
+print("--- Tabela Markdown Extraida ---")
 print(output_text)
 ```
 
 ---
 
-## 🛠 Detalhes de Treinamento
+## Detalhes de Treinamento
 
 - **Arquitetura Base:** `Qwen/Qwen2.5-VL-3B-Instruct`
-- **Método de Adaptação:** 4-bit QLoRA ($r=16, \\alpha=32, \\text{{dropout}}=0.05$)
-- **Resolução:** Original nativa (sem downsampling prévio, até ~1 Megapixel por imagem)
+- **Metodo de Adaptacao:** 4-bit QLoRA ($r=16, \\alpha=32, \\text{{dropout}}=0.05$)
+- **Resolucao:** Original nativa (sem downsampling previo, ate ~1 Megapixel por imagem)
 - **Otimizador:** `paged_adamw_8bit` com *Cosine Annealing* e taxa de aprendizado $1 \\times 10^{{-4}}$
-- **Função de Perda:** ICDAR Metric-Aware Loss com surrogate diferenciável para métricas de tabela
+- **Funcao de Perda:** ICDAR Metric-Aware Loss com surrogate diferenciavel para metricas de tabela
 - **Hardware:** NVIDIA GeForce RTX 3090 (24 GB VRAM)
-- **Código Fonte:** [sci-image-markdown](https://github.com/lucasdocunha/sci-image-markdown)
+- **Codigo Fonte:** [sci-image-markdown](https://github.com/lucasdocunha/sci-image-markdown)
 """
 
 def upload_to_hf(readme_content: str):
