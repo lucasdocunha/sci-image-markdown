@@ -27,6 +27,7 @@ console = Console()
 @click.option("--predictions-file", default=None, help="Optional path to pre-generated predictions JSONL for offline evaluation.")
 @click.option("--output-report", default="outputs/eval_results/report.json", help="Path to save evaluation JSON report.")
 @click.option("--save-predictions", default=None, help="Optional path to save generated predictions JSONL.")
+@click.option("--max-samples", default=None, type=int, help="Optional maximum number of samples to evaluate.")
 def main(
     config: str,
     model_config: str,
@@ -36,6 +37,7 @@ def main(
     predictions_file: str,
     output_report: str,
     save_predictions: str,
+    max_samples: int,
 ):
     """Runs full evaluation and prints domain table extraction metrics."""
     from tqdm import tqdm
@@ -51,6 +53,9 @@ def main(
 
     logger.info(f"Loading test records from {test_file}...")
     test_records = read_jsonl(test_file)
+    if max_samples is not None and max_samples > 0:
+        test_records = test_records[:max_samples]
+        logger.info(f"Subsetting evaluation to first {len(test_records)} samples.")
     ground_truths = [r.get("table", r.get("markdown", "")) for r in test_records]
 
     pred_records = []
