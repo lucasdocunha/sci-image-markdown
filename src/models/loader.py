@@ -190,35 +190,63 @@ def _memory_efficient_qwen2_vl_forward(
             valid_hidden = shift_hidden[valid_mask]
             valid_labels = shift_labels_flat[valid_mask].to(valid_hidden.device)
 
-            valid_logits = self.lm_head(valid_hidden).float()
-
             token_weights = kwargs.get("token_weights", getattr(self, "token_weights", None))
             if token_weights is not None:
-                token_weights = token_weights.to(valid_logits.device)
-                if token_weights.shape[0] < valid_logits.shape[-1]:
+                token_weights = token_weights.to(valid_hidden.device)
+                cfg_obj = getattr(self, "config", None)
+                vocab_size = getattr(cfg_obj, "vocab_size", None) or getattr(getattr(cfg_obj, "text_config", None), "vocab_size", None) or 152064
+                if token_weights.shape[0] < vocab_size:
                     token_weights = nn.functional.pad(
                         token_weights,
-                        (0, valid_logits.shape[-1] - token_weights.shape[0]),
+                        (0, vocab_size - token_weights.shape[0]),
                         value=1.0,
                     )
-                elif token_weights.shape[0] > valid_logits.shape[-1]:
-                    token_weights = token_weights[: valid_logits.shape[-1]]
+                elif token_weights.shape[0] > vocab_size:
+                    token_weights = token_weights[:vocab_size]
+
+            sample_weights = token_weights[valid_labels] if token_weights is not None else None
 
             focal_gamma = kwargs.get("focal_gamma", getattr(self, "focal_gamma", 0.0))
             num_items_in_batch = kwargs.get("num_items_in_batch", None)
             reduction = "sum" if num_items_in_batch is not None else "mean"
 
-            if focal_gamma > 0.0:
-                ce = nn.functional.cross_entropy(valid_logits, valid_labels, weight=token_weights, reduction="none")
-                pt = torch.exp(-ce.detach())
-                focal_w = (1.0 - pt) ** focal_gamma
-                loss = (focal_w * ce).mean()
-            else:
-                loss = nn.functional.cross_entropy(valid_logits, valid_labels, weight=token_weights, reduction=reduction)
-                if reduction == "sum":
+            chunk_size = 64
+            if valid_hidden.shape[0] > chunk_size:
+                losses = []
+                w_splits = sample_weights.split(chunk_size) if sample_weights is not None else [None] * ((valid_hidden.shape[0] + chunk_size - 1) // chunk_size)
+                for chunk_h, chunk_y, chunk_w in zip(valid_hidden.split(chunk_size), valid_labels.split(chunk_size), w_splits):
+                    chunk_logits = self.lm_head(chunk_h).float()
+                    ce = nn.functional.cross_entropy(chunk_logits, chunk_y, reduction="none")
+                    if chunk_w is not None:
+                        ce = ce * chunk_w
+                    if focal_gamma > 0.0:
+                        pt = torch.exp(-ce.detach())
+                        focal_w = (1.0 - pt) ** focal_gamma
+                        ce = focal_w * ce
+                    losses.append(ce.sum())
+                total_loss = torch.stack(losses).sum()
+                if reduction == "mean":
+                    loss = total_loss / valid_hidden.shape[0]
+                else:
                     if torch.is_tensor(num_items_in_batch):
-                        num_items_in_batch = num_items_in_batch.to(loss.device)
-                    loss = loss / num_items_in_batch
+                        num_items_in_batch = num_items_in_batch.to(total_loss.device)
+                    loss = total_loss / (num_items_in_batch if num_items_in_batch is not None else valid_hidden.shape[0])
+            else:
+                valid_logits = self.lm_head(valid_hidden).float()
+                ce = nn.functional.cross_entropy(valid_logits, valid_labels, reduction="none")
+                if sample_weights is not None:
+                    ce = ce * sample_weights
+                if focal_gamma > 0.0:
+                    pt = torch.exp(-ce.detach())
+                    focal_w = (1.0 - pt) ** focal_gamma
+                    ce = focal_w * ce
+                if reduction == "mean":
+                    loss = ce.mean()
+                else:
+                    total_loss = ce.sum()
+                    if torch.is_tensor(num_items_in_batch):
+                        num_items_in_batch = num_items_in_batch.to(total_loss.device)
+                    loss = total_loss / (num_items_in_batch if num_items_in_batch is not None else valid_hidden.shape[0])
         else:
             loss = torch.tensor(0.0, device=hidden_states.device, requires_grad=True)
     else:

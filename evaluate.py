@@ -69,6 +69,11 @@ def main(
         predictor = TablePredictor(cfg, adapter_path=adapter_path)
         predictions = []
         img_folder = cfg.get("data", {}).get("image_folder", "data/raw/images")
+
+        if save_predictions is None:
+            save_predictions = os.path.join(os.path.dirname(os.path.abspath(output_report)), "predictions.jsonl")
+        os.makedirs(os.path.dirname(os.path.abspath(save_predictions)), exist_ok=True)
+        pred_file_handle = open(save_predictions, "w", encoding="utf-8")
         
         with torch.inference_mode():
             for idx, rec in enumerate(tqdm(test_records, desc=f"Evaluating [{tag}]", unit="sample")):
@@ -100,16 +105,21 @@ def main(
                     is_valid = False
 
                 predictions.append(pred_table)
-                pred_records.append({
+                item = {
                     "index": idx,
                     "image": img_path,
                     "ground_truth": ground_truths[idx],
                     "markdown_table": pred_table,
                     "is_valid_table": is_valid,
-                })
+                }
+                pred_records.append(item)
+                pred_file_handle.write(json.dumps(item, ensure_ascii=False) + "\n")
+                pred_file_handle.flush()
 
                 if torch.cuda.is_available() and (idx + 1) % 25 == 0:
                     torch.cuda.empty_cache()
+
+        pred_file_handle.close()
 
     logger.info(f"Evaluating metrics over {len(predictions)} samples...")
     results = evaluator.evaluate_batch(predictions, ground_truths)
@@ -134,15 +144,17 @@ def main(
         json.dump(results, f, indent=2)
     logger.info(f"Evaluation report saved to: {output_report}")
 
-    # Save predictions jsonl
+    # Save predictions jsonl (if not already written incrementally)
     if save_predictions is None:
         save_predictions = os.path.join(os.path.dirname(os.path.abspath(output_report)), "predictions.jsonl")
     
-    if pred_records:
+    if predictions_file and pred_records:
         with open(save_predictions, "w", encoding="utf-8") as f:
             for item in pred_records:
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
-        logger.info(f"Sample predictions saved to: {save_predictions}")
+        logger.info(f"Predictions saved to: {save_predictions}")
+    elif pred_records:
+        logger.info(f"Predictions saved to: {save_predictions}")
 
 
 if __name__ == "__main__":
