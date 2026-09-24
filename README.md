@@ -116,15 +116,38 @@ $$W = W_0 + \Delta W = W_0 + \frac{\alpha}{r} \cdot B \cdot A$$
 
 ---
 
-## 4. Mecânica da Função de Perda (Loss) & Otimização de VRAM
+## 4. Mecânica da Função de Perda (Loss) & Atuação no LoRA
 
-### 4.1 Cross-Entropy Mascarada Autoregressiva
-Dada a sequência multimodal $X = (x_1, \dots, x_M, x_{M+1}, \dots, x_N)$, onde $x_1 \dots x_M$ correspondem aos tokens de imagem e instrução, e $x_{M+1} \dots x_N$ aos tokens da tabela alvo:
-$$\mathcal{L} = - \frac{1}{|T|} \sum_{t \in T} \log P(x_t \mid x_{<t})$$
-- **Máscara de Contexto (`label = -100`):** Posições de imagem e prompt recebem o valor $-100$, sendo ignoradas nativamente pelo PyTorch (`ignore_index=-100`).
-- **Shift Temporal:** Alinhamento dos logits previstos em $t$ com os rótulos alvos em $t+1$.
+### 4.1 A Diferença Simples: Loss Padrão (Cross-Entropy) vs. Nossa Loss
 
-### 4.2 Otimização Crítica: Fatiamento de Vocabulário na `lm_head`
+| Característica | Loss Padrão (Cross-Entropy / SFT) | Nossa Loss (ICDAR Metric-Aware Loss) |
+| :--- | :--- | :--- |
+| **Peso dos Tokens** | **Todos os tokens têm o mesmo peso ($1.0$).** | **Ponderação Seletiva guiada pela relevância:**<br>• Números (`0-9`, `.`, `-`): **Peso 3,0×**<br>• Estrutura (`|`, `\n`, `---`): **Peso 2,0×**<br>• Texto descritivo/espaços: **Peso 1,0×** |
+| **Como enxerga o erro** | Trata errar uma letra textual qualquer (`"Tempo"` $\rightarrow$ `"Tempa"`) com a **mesma penalidade** de errar um número crítico de um gráfico (`"1.2"` $\rightarrow$ `"9.8"`). | Penaliza o erro numérico com **3 vezes mais força** e o esquecimento de um delimitador de coluna com **2 vezes mais força**. |
+| **Comportamento do Modelo** | O modelo pode atingir loss muito baixa prevendo bem palavras comuns e pontuação, mas continuar errando as medidas do gráfico ou quebrando a tabela. | O modelo é forçado a priorizar a exatidão dos eixos, ticks e a integridade de todas as colunas. |
+
+### 4.2 Como ela atua especificamente no LoRA?
+
+No treinamento com **PEFT QLoRA**, o modelo base `Qwen2.5-VL-3B` permanece **100% congelado em 4-bit (NF4)**. Os únicos parâmetros que aprendem e são atualizados são os adaptadores LoRA (duas matrizes lineares de rank baixo, $A$ e $B$, inseridas nas projeções de atenção $q\_proj, k\_proj, v\_proj, o\_proj$):
+$$W = W_0 + \Delta W = W_0 + \frac{\alpha}{r} (B \cdot A)$$
+
+1. **Amplificação Seletiva de Gradientes na Retropropagação:**  
+   Quando o modelo comete um erro em um token numérico ou estrutural, a nossa loss multiplica o gradiente do logit por $3.0$ ou $2.0$. Esse gradiente amplificado via regra da cadeia chega diretamente às matrizes treináveis $A$ e $B$ do LoRA.
+2. **Direcionamento da Atenção Visual:**  
+   Esse gradiente forte força os pesos do LoRA a ajustar os padrões de atenção espacial do Vision Transformer, fazendo o modelo "olhar" e focar com muito mais nitidez nas marcações de eixos, legendas e números minúsculos da figura.
+3. **Preservação de Capacidade (Orçamento de Parâmetros):**  
+   O LoRA treina apenas **3,6 milhões de parâmetros** (apenas **0,098%** dos 3,75 bilhões de parâmetros do modelo). Se usássemos a loss padrão, o LoRA gastaria quase toda a sua capacidade aprendendo tarefas fáceis de linguagem natural. Com a nossa loss, **o orçamento de 0,098% de parâmetros é canalizado exatamente para a fidelidade numérica e estrutural**.
+
+### 4.3 O Porquê da Escolha (Justificativa Técnica)
+
+1. **Alinhamento com as Métricas Oficiais (TEDS e RMS):**  
+   O benchmark oficial avalia a árvore estrutural (TEDS) e os dados numéricos (RMS). A Cross-Entropy clássica é agnóstica à semântica tabular. A nossa loss atua como um *surrogate contínuo diferenciável*, treinando o modelo para maximizar exatamente o critério de avaliação.
+2. **Tabelas 100% Válidas (Fim das barras perdidas):**  
+   Ao dobrar o peso de delimitadores (`|`, `---`, `\n`), o modelo aprendeu que esquecer de fechar uma célula inutiliza toda a tabela. O resultado empírico foi atingir **100,00% de tabelas válidas** no conjunto de teste.
+3. **Velocidade Máxima com GPU Tensor Reward:**  
+   As métricas tradicionais (como o algoritmo de Zhang-Shasha do TEDS) rodam na CPU sobre árvores de texto e levariam dezenas de horas se chamadas durante o treino. Ao pré-computar máscaras na VRAM e avaliar a estrutura diretamente sobre tensores de GPU, mantivemos a velocidade nativa da placa gráfica com zero overhead.
+
+### 4.4 Otimização de VRAM: Fatiamento de Vocabulário na `lm_head`
 No Qwen2.5-VL, a camada linear de saída `lm_head` projeta o estado oculto ($D=2048$) para o vocabulário ($V=152.064$):
 - **Alocação Padrão Ingênua (2048 tokens):**
   $$1 \times 2048 \times 152.064 \times 4 \text{ bytes (FP32)} \approx \mathbf{1.246 \text{ GB de VRAM}}$$
