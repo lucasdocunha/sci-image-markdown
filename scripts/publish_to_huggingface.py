@@ -113,16 +113,16 @@ Este modelo foi otimizado com a funcao de perda **ICDAR Metric-Aware Loss** (com
 
 ---
 
-## Uso de GPU e Memoria VRAM Durante o Treinamento
+## Recursos de Treinamento, Tempo e Memoria VRAM
 
 Diferente de pipelines tradicionais que reduzem ou distorcem as figuras cientificas, este modelo foi treinado preservando a **resolucao vetorial nativa integral** das imagens.
 
-| Modo / Resolucao | Resolucao Maxima | Grid de Patches de Visao | **VRAM Media Alocada** | VRAM Pico |
-| :--- | :---: | :---: | :---: | :---: |
-| **Resolucao Reduzida (Baseline)** | 280 px (Downsampling PIL) | ~392x392 max | **~5,2 GB** | ~6,1 GB |
-| **Resolucao Original Nativa (Este Modelo)** | **Original (Sem downsampling)** | **Ate 1003520 pixels (~1 MP)** | **~17,2 GB** | **~18,5 GB** |
+| Modo / Resolucao | Resolucao Maxima | Grid de Patches de Visao | Tempo de Treino (3 Epocas) | **VRAM Media Alocada** | VRAM Pico |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Resolucao Reduzida (Baseline)** | 280 px (Downsampling PIL) | ~392x392 max | ~28 min (~1.680s) | **~5,2 GB** | ~6,1 GB |
+| **Resolucao Original Nativa (Este Modelo)** | **Original (Sem downsampling)** | **Ate 1003520 pixels (~1 MP)** | **1h 38m 57s (5.937s)** | **~17,2 GB** | **~18,5 GB** |
 
-> **Nota de Hardware:** O treinamento em resolucao original foi conduzido em uma **NVIDIA GeForce RTX 3090 (24 GB VRAM)** utilizando quantizacao **4-bit NF4 (QLoRA)**, otimizador `paged_adamw_8bit` e *Gradient Checkpointing*. A alta alocacao de VRAM decorre do numero dinamico de tokens visuais bidimensionais necessarios para capturar com maxima fidelidade eixos, marcadores e numeros minusculos de graficos complexos.
+> **Nota de Hardware e Eficiencia:** O treinamento em resolucao original levou **1h 38m 57s (5.937 segundos)** em uma **NVIDIA GeForce RTX 3090 (24 GB VRAM)** utilizando quantizacao **4-bit NF4 (QLoRA)**, otimizador `paged_adamw_8bit` e *Gradient Checkpointing*. O aumento no tempo e no uso de memoria decorre do processamento de ate ~1.280 patches visuais por figura (contra ~100 patches no baseline), garantindo resolucao nativa para capturar cada detalhe numerico.
 
 ---
 
@@ -257,6 +257,7 @@ print(output_text)
 - **Otimizador:** `paged_adamw_8bit` com *Cosine Annealing* e taxa de aprendizado $1 \\times 10^{{-4}}$
 - **Funcao de Perda:** ICDAR Metric-Aware Loss com surrogate diferenciavel para metricas de tabela
 - **Hardware:** NVIDIA GeForce RTX 3090 (24 GB VRAM)
+- **Tempo de Treinamento:** 1 hora, 38 minutos e 57 segundos (5.937 segundos totais para 3 epocas, 273 passos)
 - **Codigo Fonte:** [sci-image-markdown](https://github.com/lucasdocunha/sci-image-markdown)
 """
 
