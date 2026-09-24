@@ -255,7 +255,7 @@ def main(
             shutil.copy2(s, d)
 
     # 2. Write curated README.md Model Card
-    card_content = MODEL_CARD_TEMPLATE.format(repo_id=repo_id)
+    card_content = MODEL_CARD_TEMPLATE.replace("{repo_id}", repo_id)
     with open(os.path.join(export_dir, "README.md"), "w", encoding="utf-8") as f:
         f.write(card_content)
 
