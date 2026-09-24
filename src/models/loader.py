@@ -204,13 +204,21 @@ def _memory_efficient_qwen2_vl_forward(
                 elif token_weights.shape[0] > valid_logits.shape[-1]:
                     token_weights = token_weights[: valid_logits.shape[-1]]
 
+            focal_gamma = kwargs.get("focal_gamma", getattr(self, "focal_gamma", 0.0))
             num_items_in_batch = kwargs.get("num_items_in_batch", None)
             reduction = "sum" if num_items_in_batch is not None else "mean"
-            loss = nn.functional.cross_entropy(valid_logits, valid_labels, weight=token_weights, reduction=reduction)
-            if reduction == "sum":
-                if torch.is_tensor(num_items_in_batch):
-                    num_items_in_batch = num_items_in_batch.to(loss.device)
-                loss = loss / num_items_in_batch
+
+            if focal_gamma > 0.0:
+                ce = nn.functional.cross_entropy(valid_logits, valid_labels, weight=token_weights, reduction="none")
+                pt = torch.exp(-ce.detach())
+                focal_w = (1.0 - pt) ** focal_gamma
+                loss = (focal_w * ce).mean()
+            else:
+                loss = nn.functional.cross_entropy(valid_logits, valid_labels, weight=token_weights, reduction=reduction)
+                if reduction == "sum":
+                    if torch.is_tensor(num_items_in_batch):
+                        num_items_in_batch = num_items_in_batch.to(loss.device)
+                    loss = loss / num_items_in_batch
         else:
             loss = torch.tensor(0.0, device=hidden_states.device, requires_grad=True)
     else:

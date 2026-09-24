@@ -146,3 +146,66 @@ def test_icdar_metric_loss_hybrid():
     for param in model.parameters():
         if param.requires_grad and param.grad is not None:
             assert not torch.isnan(param.grad).any()
+
+
+def test_gpu_tensor_reward_module():
+    from src.training.icdar_loss import ICDARGPUTensorReward
+
+    tokenizer = DummyTokenizer()
+    reward_module = ICDARGPUTensorReward(tokenizer)
+
+    # Identical table sequence: | 1 . 2 |
+    tokens_target = torch.tensor([2, 4, 6, 5, 2])
+    tokens_pred = torch.tensor([2, 4, 6, 5, 2])
+
+    reward, info = reward_module(tokens_pred, tokens_target)
+    assert isinstance(reward, torch.Tensor)
+    assert abs(reward.item() - 1.0) < 1e-4
+    assert abs(info["r_num"] - 1.0) < 1e-4
+    assert abs(info["r_struct"] - 1.0) < 1e-4
+
+    # Divergent sequence: digits missing
+    tokens_divergent = torch.tensor([7, 8, 7])
+    reward_div, info_div = reward_module(tokens_divergent, tokens_target)
+    assert reward_div.item() < reward.item()
+
+
+def test_token_weighted_loss_with_focal_gamma():
+    tokenizer = DummyTokenizer()
+    loss_module = ICDARTokenWeightedLoss(tokenizer, numeric_weight=3.0, structural_weight=2.0, focal_gamma=1.5)
+
+    logits = torch.randn(2, 6, len(tokenizer), requires_grad=True)
+    labels = torch.tensor([
+        [-100, -100, 2, 4, 6, 1],
+        [-100, 7, 2, 8, 9, 1],
+    ])
+
+    loss = loss_module(logits, labels)
+    assert loss.item() > 0.0
+    loss.backward()
+    assert logits.grad is not None
+    assert not torch.isnan(logits.grad).any()
+
+
+def test_scst_loss_gpu_tensor_reward():
+    processor = DummyProcessor()
+    scst_module = ICDARSCSTLoss(processor, max_gen_tokens=10, reward_mode="gpu_tensor")
+    model = DummyModel(len(processor.tokenizer))
+
+    inputs = {
+        "input_ids": torch.tensor([[7, 8, 2, 4, 2, 5, 2, 1]]),
+        "attention_mask": torch.tensor([[1, 1, 1, 1, 1, 1, 1, 1]]),
+        "labels": torch.tensor([[-100, -100, 2, 4, 2, 5, 2, 1]]),
+    }
+
+    loss, stats = scst_module(model, inputs)
+    assert isinstance(loss, torch.Tensor)
+    assert "mean_r_sampled" in stats
+    assert "mean_r_greedy" in stats
+    assert "mean_advantage" in stats
+
+    loss.backward()
+    for param in model.parameters():
+        if param.grad is not None:
+            assert not torch.isnan(param.grad).any()
+

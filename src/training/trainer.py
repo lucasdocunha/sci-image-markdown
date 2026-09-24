@@ -138,6 +138,9 @@ class SciImageTableTrainer:
         if loss_type in ("scst", "token_weighted", "hybrid", "icdar_metric"):
             m_cfg = t_cfg.get("metric_loss", {})
             actual_type = "scst" if loss_type == "icdar_metric" else loss_type
+            vocab_sz = getattr(getattr(self.model, "config", None), "vocab_size", None)
+            reward_mode = m_cfg.get("reward_mode", "gpu_tensor")
+            focal_gamma = float(m_cfg.get("focal_gamma", 0.0))
             self.icdar_loss_module = ICDARMetricLoss(
                 processor=self.processor,
                 loss_type=actual_type,
@@ -147,16 +150,24 @@ class SciImageTableTrainer:
                 max_gen_tokens=m_cfg.get("max_gen_tokens", 512),
                 numeric_weight=m_cfg.get("numeric_weight", 3.0),
                 structural_weight=m_cfg.get("structural_weight", 2.0),
+                reward_mode=reward_mode,
+                focal_gamma=focal_gamma,
+                vocab_size=vocab_sz,
             )
-            logger.info(f"Initialized ICDARMetricLoss (type={actual_type}, lambda={m_cfg.get('lambda_metric', 0.3)})")
+            logger.info(f"Initialized ICDARMetricLoss (type={actual_type}, lambda={m_cfg.get('lambda_metric', 0.3)}, reward_mode={reward_mode})")
             if hasattr(self.icdar_loss_module, "weighted_module") and self.icdar_loss_module.weighted_module is not None:
                 weights = getattr(self.icdar_loss_module.weighted_module, "token_weights", None)
                 if weights is not None:
+                    model_dev = next(self.model.parameters()).device
+                    weights = weights.to(model_dev)
                     setattr(self.model, "token_weights", weights)
+                    setattr(self.model, "focal_gamma", focal_gamma)
                     if hasattr(self.model, "base_model"):
                         setattr(self.model.base_model, "token_weights", weights)
+                        setattr(self.model.base_model, "focal_gamma", focal_gamma)
                         if hasattr(self.model.base_model, "model"):
                             setattr(self.model.base_model.model, "token_weights", weights)
+                            setattr(self.model.base_model.model, "focal_gamma", focal_gamma)
         else:
             self.icdar_loss_module = None
 

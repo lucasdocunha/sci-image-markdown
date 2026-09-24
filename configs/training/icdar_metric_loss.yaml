@@ -22,3 +22,5 @@ training:
     max_gen_tokens: 300       # Maximum generation tokens during SCST training
     numeric_weight: 3.0       # Weight for numerical tokens in token-weighted mode (RMS proxy)
     structural_weight: 2.0    # Weight for table structural tokens (| and ---) (TEDS proxy)
+    reward_mode: "gpu_tensor" # 'gpu_tensor' (100% in-VRAM fast tensor reward) or 'cpu_exact' (Zhang-Shasha tree on CPU)
+    focal_gamma: 0.0          # Optional focal loss exponent on GPU (0.0 for standard weighted CE, >0 to focus on hard tokens)
