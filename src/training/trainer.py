@@ -18,9 +18,17 @@ logger = setup_logger(__name__)
 class LazyMultimodalDataset(Dataset):
     """Dataset wrapper that formats multimodal messages on demand."""
 
-    def __init__(self, dataset: Any, max_table_chars: Optional[int] = None):
+    def __init__(
+        self,
+        dataset: Any,
+        max_table_chars: Optional[int] = None,
+        min_pixels: Optional[int] = None,
+        max_pixels: Optional[int] = None,
+    ):
         self.dataset = dataset
         self.max_table_chars = max_table_chars
+        self.min_pixels = min_pixels
+        self.max_pixels = max_pixels
 
     def __len__(self) -> int:
         return len(self.dataset)
@@ -33,7 +41,9 @@ class LazyMultimodalDataset(Dataset):
         msgs = format_qwen_vl_conversation(
             image=item["image"],
             target_table=table,
-            system_prompt=item["system_prompt"]
+            system_prompt=item["system_prompt"],
+            min_pixels=self.min_pixels,
+            max_pixels=self.max_pixels,
         )
         return {"messages": msgs}
 
@@ -174,10 +184,23 @@ class SciImageTableTrainer:
     def train(self):
         """Executes model training."""
         logger.info("Initializing lazy multimodal datasets...")
-        max_table_chars = self.cfg.get("data", {}).get("max_table_chars", 1500)
-        train_formatted = LazyMultimodalDataset(self.train_dataset, max_table_chars=max_table_chars)
+        data_cfg = self.cfg.get("data", {})
+        max_table_chars = data_cfg.get("max_table_chars", 1500)
+        min_pixels = data_cfg.get("min_pixels")
+        max_pixels = data_cfg.get("max_pixels")
+        train_formatted = LazyMultimodalDataset(
+            self.train_dataset,
+            max_table_chars=max_table_chars,
+            min_pixels=min_pixels,
+            max_pixels=max_pixels,
+        )
         eval_formatted = (
-            LazyMultimodalDataset(self.eval_dataset, max_table_chars=max_table_chars)
+            LazyMultimodalDataset(
+                self.eval_dataset,
+                max_table_chars=max_table_chars,
+                min_pixels=min_pixels,
+                max_pixels=max_pixels,
+            )
             if self.eval_dataset is not None
             else None
         )

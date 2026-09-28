@@ -20,12 +20,16 @@ class QwenVLTableExtractor:
         system_prompt: str = "You are an expert scientific figure analyzer. Extract the plotted quantitative data into a clean Markdown table.",
         max_new_tokens: int = 1024,
         temperature: float = 0.0,
+        min_pixels: Optional[int] = None,
+        max_pixels: Optional[int] = None,
     ):
         self.model = model
         self.processor = processor
         self.system_prompt = system_prompt
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
+        self.min_pixels = min_pixels
+        self.max_pixels = max_pixels
 
     @torch.no_grad()
     def predict(self, image: Image.Image) -> str:
@@ -33,7 +37,9 @@ class QwenVLTableExtractor:
         messages = format_qwen_vl_conversation(
             image=image,
             target_table=None,
-            system_prompt=self.system_prompt
+            system_prompt=self.system_prompt,
+            min_pixels=self.min_pixels,
+            max_pixels=self.max_pixels,
         )
 
         text = self.processor.apply_chat_template(

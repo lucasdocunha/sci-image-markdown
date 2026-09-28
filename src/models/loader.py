@@ -80,6 +80,12 @@ def load_model_and_processor(
     except TypeError:
         processor = AutoProcessor.from_pretrained(model_name, **processor_kwargs)
 
+    if hasattr(processor, "image_processor") and hasattr(processor.image_processor, "size"):
+        if min_pixels is not None and hasattr(processor.image_processor.size, "__setitem__"):
+            processor.image_processor.size["shortest_edge"] = min_pixels
+        if max_pixels is not None and hasattr(processor.image_processor.size, "__setitem__"):
+            processor.image_processor.size["longest_edge"] = max_pixels
+
     load_4bit = cfg.get("quantization", {}).get("load_in_4bit", False) or (is_training and cfg.get("training", {}).get("method") == "qlora")
     bnb_config = build_quantization_config(cfg) if load_4bit else None
     torch_dtype = torch.bfloat16 if model_cfg.get("torch_dtype") == "bfloat16" else torch.float16
@@ -210,13 +216,14 @@ def _memory_efficient_qwen2_vl_forward(
             num_items_in_batch = kwargs.get("num_items_in_batch", None)
             reduction = "sum" if num_items_in_batch is not None else "mean"
 
-            chunk_size = 64
+            chunk_size = 16
             if valid_hidden.shape[0] > chunk_size:
                 losses = []
                 w_splits = sample_weights.split(chunk_size) if sample_weights is not None else [None] * ((valid_hidden.shape[0] + chunk_size - 1) // chunk_size)
                 for chunk_h, chunk_y, chunk_w in zip(valid_hidden.split(chunk_size), valid_labels.split(chunk_size), w_splits):
                     chunk_logits = self.lm_head(chunk_h).float()
                     ce = nn.functional.cross_entropy(chunk_logits, chunk_y, reduction="none")
+                    del chunk_logits
                     if chunk_w is not None:
                         ce = ce * chunk_w
                     if focal_gamma > 0.0:
@@ -234,6 +241,7 @@ def _memory_efficient_qwen2_vl_forward(
             else:
                 valid_logits = self.lm_head(valid_hidden).float()
                 ce = nn.functional.cross_entropy(valid_logits, valid_labels, reduction="none")
+                del valid_logits
                 if sample_weights is not None:
                     ce = ce * sample_weights
                 if focal_gamma > 0.0:

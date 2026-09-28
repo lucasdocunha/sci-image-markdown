@@ -49,6 +49,7 @@ Thumbs.db
 *.local
 *.log
 *.pid
+/data
 /data/
 /outputs/
 .pytest_cache/

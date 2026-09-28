@@ -1,0 +1,79 @@
+# Training Configuration for Qwen2.5-VL-7B-Instruct with Custom ICDAR Metric Loss
+project_name: "sci-image-markdown"
+experiment_name: "qwen2_5_vl_7b_icdar_loss"
+seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  splits_dir: "data/splits"
+  train_file: "data/processed/train.jsonl"
+  val_file: "data/processed/val.jsonl"
+  test_file: "data/processed/test.jsonl"
+  image_folder: "data/processed"
+  max_image_resolution: null   # Native resolution, aspect-ratio preserved
+  min_pixels: 50176            # Minimum vision patch grid (64 * 28 * 28)
+  max_pixels: 200704           # 256 * 28 * 28 (~448x448 native vision patch budget, highly detailed & memory safe)
+  max_table_chars: 800
+  system_prompt: "You are an expert scientific figure analyzer. Your task is to extract the exact data points and values plotted in the given scientific figure panel and format them into a structured Markdown table with proper column headers."
+
+model:
+  name_or_path: "Qwen/Qwen2.5-VL-7B-Instruct"
+  model_type: "qwen2_5_vl"
+  trust_remote_code: true
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"
+  use_cache: false
+
+training:
+  method: "qlora"
+  loss_type: "token_weighted"
+  output_dir: "/media/ssd2/lucas.ocunha/sci-image-markdown-data/outputs/qwen2_5_vl_7b_icdar_loss"
+  num_train_epochs: 3
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  optim: "paged_adamw_8bit"
+  learning_rate: 1.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_steps: 20
+  weight_decay: 0.01
+  logging_steps: 10
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  save_total_limit: 2
+  gradient_checkpointing: true
+  bf16: false
+  fp16: false
+  dataloader_num_workers: 2
+  report_to: "none"
+  metric_loss:
+    lambda_metric: 0.3
+    rel_tol: 0.05
+    numeric_weight: 3.0
+    structural_weight: 2.0
+    reward_mode: "gpu_tensor"
+
+peft:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+  target_modules:
+    - "q_proj"
+    - "v_proj"
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "bfloat16"
+  bnb_4bit_use_double_quant: true
+
+evaluation:
+  batch_size: 1
+  max_new_tokens: 1024
+  temperature: 0.0
+  do_sample: false
+  numerical_relative_tolerance: 0.05
+  output_eval_dir: "/media/ssd2/lucas.ocunha/sci-image-markdown-data/outputs/eval_results/7b_icdar_loss"
