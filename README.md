@@ -154,6 +154,23 @@ Cada linha é estritamente formatada no esquema canônico enxuto:
 }
 ```
 
+### Dataset sintético por dificuldade
+
+Para criar dados de treino reproduzíveis sem baixar o benchmark, use o gerador:
+
+```bash
+python generate_synthetic_dataset.py --output-dir data/synthetic --num-samples 90 --difficulty all
+```
+
+Ele grava `train.jsonl`, `val.jsonl`, `test.jsonl` e `images/` no mesmo esquema
+canônico, em JPEG e nas proporções oficiais 723/104/373. O catálogo contém 25
+famílias coerentes com ALD/ALE, incluindo barras, dispersão, saturação, QCM,
+espectros, eixos duplos, insetos e múltiplos painéis. O modo `all` aproxima a
+distribuição de complexidade dos dados processados (45% `easy`, 40% `medium` e
+15% `hard`), percorre as famílias antes de repeti-las e rejeita tabelas
+duplicadas. Para gerar somente um nível, use `--difficulty hard`. O gerador não
+substitui um diretório não vazio sem `--overwrite`.
+
 ---
 
 ## 6. Dicionário de Hiperparâmetros Chave
