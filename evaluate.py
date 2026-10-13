@@ -98,18 +98,24 @@ def main(
                 try:
                     res = predictor.predict_image(resolved_path)
                     pred_table = res["markdown_table"]
+                    raw_output = res["raw_output"]
                     is_valid = res["is_valid_table"]
                 except Exception as exc:
                     logger.error(f"Error predicting sample {idx} ({img_path}): {exc}")
                     pred_table = ""
+                    raw_output = ""
                     is_valid = False
 
                 predictions.append(pred_table)
+                # raw_output keeps every generated table; markdown_table holds only the
+                # first one, so per-panel analysis (analyze_errors.py) needs raw_output.
                 item = {
                     "index": idx,
+                    "id": rec.get("id"),
                     "image": img_path,
                     "ground_truth": ground_truths[idx],
                     "markdown_table": pred_table,
+                    "raw_output": raw_output,
                     "is_valid_table": is_valid,
                 }
                 pred_records.append(item)
