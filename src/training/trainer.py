@@ -111,7 +111,8 @@ class ICDARTrainer(Trainer):
             return super().compute_loss(model, inputs, return_outputs=return_outputs, **kwargs)
 
         outputs = model(**inputs)
-        loss, loss_stats = self.icdar_loss_module(model, inputs, sft_loss=outputs.loss)
+        loss, loss_stats = self.icdar_loss_module(model, inputs, outputs=outputs, sft_loss=outputs.loss)
+
 
         if self.state.global_step % max(1, self.args.logging_steps) == 0:
             for k, v in loss_stats.items():
@@ -172,6 +173,13 @@ class SciImageTableTrainer:
                     weights = weights.to(model_dev)
                     setattr(self.model, "token_weights", weights)
                     setattr(self.model, "focal_gamma", focal_gamma)
+                    if hasattr(self.model, "base_model"):
+                        setattr(self.model.base_model, "token_weights", weights)
+                        setattr(self.model.base_model, "focal_gamma", focal_gamma)
+                        if hasattr(self.model.base_model, "model"):
+                            setattr(self.model.base_model.model, "token_weights", weights)
+                            setattr(self.model.base_model.model, "focal_gamma", focal_gamma)
+
                     if hasattr(self.model, "base_model"):
                         setattr(self.model.base_model, "token_weights", weights)
                         setattr(self.model.base_model, "focal_gamma", focal_gamma)

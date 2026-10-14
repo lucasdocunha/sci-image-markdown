@@ -3,7 +3,7 @@ Domain metrics for Table Extraction: RNE, RMSE, Normalized Edit Distance, Precis
 """
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import Levenshtein
@@ -26,18 +26,40 @@ def compute_normalized_edit_distance(pred_str: str, target_str: str) -> float:
     return max(0.0, 1.0 - (dist / max_len))
 
 
-def extract_numerical_cells(df: pd.DataFrame) -> List[float]:
-    """Extracts all numeric float values present in a DataFrame."""
+from .table_parser import sanitize_cell_text
+
+
+def sanitize_numerical_cell(val: Any) -> Optional[float]:
+    """Converts a table cell value or sanitized string into a float."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val) if not (math.isnan(val) or math.isinf(val)) else None
+
+    cleaned = sanitize_cell_text(str(val))
+    try:
+        num = float(cleaned)
+        return num if not (math.isnan(num) or math.isinf(num)) else None
+    except ValueError:
+        return None
+
+
+def extract_numerical_cells(df: Any) -> List[float]:
+    """Extracts all numeric float values present in a DataFrame or list of DataFrames."""
+    if df is None:
+        return []
+    dfs = df if isinstance(df, list) else [df]
     values = []
-    for col in df.columns:
-        for val in df[col]:
-            try:
-                num = float(val)
-                if not (math.isnan(num) or math.isinf(num)):
+    for d in dfs:
+        if d is None or not hasattr(d, "columns"):
+            continue
+        for col in d.columns:
+            for val in d[col]:
+                num = sanitize_numerical_cell(val)
+                if num is not None:
                     values.append(num)
-            except (ValueError, TypeError):
-                continue
     return values
+
 
 
 def compute_numerical_cell_metrics(
@@ -129,26 +151,44 @@ class TableNode:
 
 
 def parse_markdown_to_tree(md_text: str) -> TableNode:
-    """Parses a Markdown table string into a TableNode tree."""
-    from .table_parser import parse_markdown_to_dataframe
+    """Parses a Markdown table string into a TableNode tree.
+    Supports multiple tables and applies cell sanitization for robust structural comparison.
+    """
+    from .table_parser import parse_all_markdown_tables
 
-    df, is_valid = parse_markdown_to_dataframe(md_text)
-    root = TableNode("table")
-    if not is_valid or df is None:
+    dfs = parse_all_markdown_tables(md_text)
+    if not dfs:
+        return TableNode("table")
+
+    if len(dfs) == 1:
+        df = dfs[0]
+        root = TableNode("table")
+        tr_head = TableNode("tr")
+        for col in df.columns:
+            tr_head.children.append(TableNode("th", text=sanitize_cell_text(str(col))))
+        root.children.append(tr_head)
+
+        for _, row in df.iterrows():
+            tr_row = TableNode("tr")
+            for val in row:
+                tr_row.children.append(TableNode("td", text=sanitize_cell_text(str(val))))
+            root.children.append(tr_row)
         return root
 
-    # thead / header row
-    tr_head = TableNode("tr")
-    for col in df.columns:
-        tr_head.children.append(TableNode("th", text=str(col)))
-    root.children.append(tr_head)
+    root = TableNode("tables")
+    for df in dfs:
+        t_node = TableNode("table")
+        tr_head = TableNode("tr")
+        for col in df.columns:
+            tr_head.children.append(TableNode("th", text=sanitize_cell_text(str(col))))
+        t_node.children.append(tr_head)
 
-    # tbody / data rows
-    for _, row in df.iterrows():
-        tr_row = TableNode("tr")
-        for val in row:
-            tr_row.children.append(TableNode("td", text=str(val)))
-        root.children.append(tr_row)
+        for _, row in df.iterrows():
+            tr_row = TableNode("tr")
+            for val in row:
+                tr_row.children.append(TableNode("td", text=sanitize_cell_text(str(val))))
+            t_node.children.append(tr_row)
+        root.children.append(t_node)
 
     return root
 
@@ -245,19 +285,19 @@ def compute_teds(pred_md: str, target_md: str) -> float:
     Returns a score in [0.0, 1.0], where 1.0 indicates structural and content identity.
     If the predicted text is not a valid table while target is valid, returns 0.0.
     """
-    from .table_parser import parse_markdown_to_dataframe
+    from .table_parser import parse_all_markdown_tables
 
     if not pred_md and not target_md:
         return 1.0
     if not pred_md or not target_md:
         return 0.0
 
-    _, is_pred_valid = parse_markdown_to_dataframe(pred_md)
-    _, is_target_valid = parse_markdown_to_dataframe(target_md)
+    pred_dfs = parse_all_markdown_tables(pred_md)
+    target_dfs = parse_all_markdown_tables(target_md)
 
-    if not is_pred_valid and not is_target_valid:
+    if not pred_dfs and not target_dfs:
         return 1.0 if pred_md.strip() == target_md.strip() else 0.0
-    if not is_pred_valid or not is_target_valid:
+    if not pred_dfs or not target_dfs:
         return 0.0
 
     tree_pred = parse_markdown_to_tree(pred_md)
@@ -272,8 +312,8 @@ def compute_teds(pred_md: str, target_md: str) -> float:
 
 
 def compute_icdar_rms(
-    pred_df: Optional[pd.DataFrame],
-    target_df: Optional[pd.DataFrame],
+    pred_df: Any,
+    target_df: Any,
     rel_tol: float = 0.05
 ) -> float:
     """Computes the Relative Matching Score (RMS) for numerical cell values.
@@ -300,12 +340,12 @@ def compute_icdar_score(
     Returns:
         Dict with keys 'teds', 'rms', and 'icdar_score' (average of TEDS and RMS, [0, 1]).
     """
-    from .table_parser import parse_markdown_to_dataframe
+    from .table_parser import parse_all_markdown_tables
 
     teds = compute_teds(pred_md, target_md)
-    pred_df, _ = parse_markdown_to_dataframe(pred_md)
-    target_df, _ = parse_markdown_to_dataframe(target_md)
-    rms = compute_icdar_rms(pred_df, target_df, rel_tol=rel_tol)
+    pred_dfs = parse_all_markdown_tables(pred_md)
+    target_dfs = parse_all_markdown_tables(target_md)
+    rms = compute_icdar_rms(pred_dfs, target_dfs, rel_tol=rel_tol)
     composite = 0.5 * (teds + rms)
 
     return {
@@ -313,3 +353,4 @@ def compute_icdar_score(
         "rms": rms,
         "icdar_score": composite,
     }
+

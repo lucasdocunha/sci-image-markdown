@@ -15,7 +15,7 @@ data:
   min_pixels: 50176            # Minimum vision patch grid (64 * 28 * 28)
   max_pixels: 200704           # 256 * 28 * 28 (~448x448 native vision patch budget, highly detailed & memory safe)
   max_table_chars: 800
-  system_prompt: "You are an expert scientific figure analyzer. Your task is to extract the exact data points and values plotted in the given scientific figure panel and format them into a structured Markdown table with proper column headers."
+  system_prompt: "You are an expert scientific figure analyzer. Your task is to extract all numerical data points and values plotted in the given scientific figure panel into a structured Markdown table with accurate column headers. Follow these strict guidelines: 1. Peak-Picking: For continuous spectroscopy plots (e.g. RBS, Raman, XRD, XPS, FTIR), locate and extract the precise coordinates and labels of physical peaks and extrema rather than regular grid intervals. 2. Multi-Panel Figures: If the figure contains multiple subplots (panels a, b, c), extract a separate Markdown table for EACH panel. Do not stop early. 3. Pure Numeric Values: Output clean numerical values without approximation symbols (never use '~', 'approx'). 4. Avoid Dummy Progressions: Never output artificial linear progression sequences."
 
 model:
   name_or_path: "Qwen/Qwen2.5-VL-7B-Instruct"
@@ -28,7 +28,7 @@ model:
 training:
   method: "qlora"
   loss_type: "token_weighted"
-  output_dir: "/media/ssd2/lucas.ocunha/sci-image-markdown-data/outputs/qwen2_5_vl_7b_icdar_loss"
+  output_dir: "/media/ssd2/datasets/sci-image-markdown-data/outputs/qwen2_5_vl_7b_icdar_loss_v2"
   num_train_epochs: 3
   per_device_train_batch_size: 1
   per_device_eval_batch_size: 1
@@ -50,9 +50,10 @@ training:
   metric_loss:
     lambda_metric: 0.3
     rel_tol: 0.05
-    numeric_weight: 3.0
-    structural_weight: 2.0
+    numeric_weight: 4.0
+    structural_weight: 3.0
     reward_mode: "gpu_tensor"
+
 
 peft:
   r: 16
@@ -76,4 +77,4 @@ evaluation:
   temperature: 0.0
   do_sample: false
   numerical_relative_tolerance: 0.05
-  output_eval_dir: "/media/ssd2/lucas.ocunha/sci-image-markdown-data/outputs/eval_results/7b_icdar_loss"
+  output_eval_dir: "/media/ssd2/datasets/sci-image-markdown-data/outputs/eval_results/7b_icdar_loss_v2"

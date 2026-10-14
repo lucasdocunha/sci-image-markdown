@@ -7,7 +7,7 @@ from PIL import Image
 import torch
 from qwen_vl_utils import process_vision_info
 
-from ..data.preprocessor import format_qwen_vl_conversation
+from ..data.preprocessor import format_qwen_vl_conversation, DEFAULT_SYSTEM_PROMPT
 
 
 class QwenVLTableExtractor:
@@ -17,7 +17,8 @@ class QwenVLTableExtractor:
         self,
         model: Any,
         processor: Any,
-        system_prompt: str = "You are an expert scientific figure analyzer. Extract the plotted quantitative data into a clean Markdown table.",
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+
         max_new_tokens: int = 1024,
         temperature: float = 0.0,
         min_pixels: Optional[int] = None,
