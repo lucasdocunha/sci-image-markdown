@@ -40,11 +40,17 @@ def _official():
     return evaluation, official_metrics, deplot_metrics, teds_pubtables_official
 
 
+def is_valid_table(text: Optional[str]) -> bool:
+    """Official submission check: a non-empty, strictly formatted markdown table."""
+    evaluation = _official()[0]
+    return not evaluation.is_empty(text) and evaluation.is_valid_markdown_table_strict(text)
+
+
 def score_panel(gt_table: str, pred_table: Optional[str]) -> PanelScore:
     """Scores one panel exactly as the official data_extraction task does."""
     evaluation, official_metrics, deplot_metrics, teds = _official()
 
-    valid = not evaluation.is_empty(pred_table) and evaluation.is_valid_markdown_table_strict(pred_table)
+    valid = is_valid_table(pred_table)
     truth = evaluation.decode_unicode(gt_table)
     pred = evaluation.decode_unicode(pred_table if valid else "")
     if not pred:
