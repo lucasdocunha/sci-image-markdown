@@ -13,6 +13,25 @@ from transformers import (
     Qwen2_5_VLForConditionalGeneration,
 )
 from transformers.models.qwen2_vl.modeling_qwen2_vl import Qwen2VLCausalLMOutputWithPast
+try:
+    from transformers import Qwen3VLForConditionalGeneration, Qwen3_5ForConditionalGeneration
+    from transformers.models.qwen3_vl.modeling_qwen3_vl import Qwen3VLCausalLMOutputWithPast
+    from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5CausalLMOutputWithPast
+    SUPPORTED_QWEN_CLASSES = (
+        Qwen2VLForConditionalGeneration,
+        Qwen2_5_VLForConditionalGeneration,
+        Qwen3VLForConditionalGeneration,
+        Qwen3_5ForConditionalGeneration,
+    )
+except ImportError:
+    Qwen3VLForConditionalGeneration = None
+    Qwen3_5ForConditionalGeneration = None
+    Qwen3VLCausalLMOutputWithPast = None
+    Qwen3_5CausalLMOutputWithPast = None
+    SUPPORTED_QWEN_CLASSES = (
+        Qwen2VLForConditionalGeneration,
+        Qwen2_5_VLForConditionalGeneration,
+    )
 from peft import (
     LoraConfig,
     get_peft_model,
@@ -106,7 +125,17 @@ def load_model_and_processor(
     if attn_impl:
         kwargs["attn_implementation"] = attn_impl
 
-    if "qwen2_5" in model_type or "qwen2.5" in model_type or "Qwen2.5" in model_name:
+    if "qwen3_5" in model_type or "LightOnOCR" in model_name or "lighton" in model_name.lower():
+        if Qwen3_5ForConditionalGeneration is not None:
+            model = Qwen3_5ForConditionalGeneration.from_pretrained(model_name, **kwargs)
+        else:
+            model = AutoModelForImageTextToText.from_pretrained(model_name, **kwargs)
+    elif "qwen3" in model_type or "qwen3_vl" in model_type or "Qwen3" in model_name:
+        if Qwen3VLForConditionalGeneration is not None:
+            model = Qwen3VLForConditionalGeneration.from_pretrained(model_name, **kwargs)
+        else:
+            model = AutoModelForImageTextToText.from_pretrained(model_name, **kwargs)
+    elif "qwen2_5" in model_type or "qwen2.5" in model_type or "Qwen2.5" in model_name:
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_name, **kwargs)
     elif "qwen2" in model_type or "qwen" in model_type or "Qwen2" in model_name:
         model = Qwen2VLForConditionalGeneration.from_pretrained(model_name, **kwargs)
@@ -131,10 +160,10 @@ def load_model_and_processor(
         target_base = getattr(model, "base_model", None)
         if target_base is not None and hasattr(target_base, "model"):
             base_inner = target_base.model
-            if isinstance(base_inner, (Qwen2VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration)):
+            if isinstance(base_inner, SUPPORTED_QWEN_CLASSES):
                 base_inner.forward = _memory_efficient_qwen2_vl_forward.__get__(base_inner, type(base_inner))
                 logger.info("Applied selective memory-efficient forward pass to base model.")
-        elif isinstance(model, (Qwen2VLForConditionalGeneration, Qwen2_5_VLForConditionalGeneration)):
+        elif isinstance(model, SUPPORTED_QWEN_CLASSES):
             model.forward = _memory_efficient_qwen2_vl_forward.__get__(model, type(model))
             logger.info("Applied selective memory-efficient forward pass to model.")
 
@@ -261,12 +290,20 @@ def _memory_efficient_qwen2_vl_forward(
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])
 
-    return Qwen2VLCausalLMOutputWithPast(
+    cls_name = type(self).__name__
+    if "Qwen3VL" in cls_name and Qwen3VLCausalLMOutputWithPast is not None:
+        out_cls = Qwen3VLCausalLMOutputWithPast
+    elif "Qwen3_5" in cls_name and Qwen3_5CausalLMOutputWithPast is not None:
+        out_cls = Qwen3_5CausalLMOutputWithPast
+    else:
+        out_cls = Qwen2VLCausalLMOutputWithPast
+
+    return out_cls(
         loss=loss,
         logits=logits,
         past_key_values=outputs.past_key_values,
         hidden_states=outputs.hidden_states,
         attentions=outputs.attentions,
-        rope_deltas=outputs.rope_deltas,
+        rope_deltas=getattr(outputs, "rope_deltas", None),
     )
 

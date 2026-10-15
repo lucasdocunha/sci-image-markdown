@@ -1,0 +1,30 @@
+# Zero-Shot Evaluation Configuration for Qwen3-VL-8B-Instruct
+project_name: "sci-image-markdown"
+experiment_name: "zero_shot_qwen3_vl_8b"
+seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  test_file: "data/processed/test.jsonl"
+  image_folder: "data/processed"
+  max_image_resolution: null
+  min_pixels: 50176
+  max_pixels: 200704
+  system_prompt: "You are an expert scientific figure analyzer. Your task is to extract all numerical data points and values plotted in the given scientific figure panel into a structured Markdown table with accurate column headers. Follow these strict guidelines: 1. Peak-Picking: For continuous spectroscopy plots (e.g. RBS, Raman, XRD, XPS, FTIR), locate and extract the precise coordinates and labels of physical peaks and extrema rather than regular grid intervals. 2. Multi-Panel Figures: If the figure contains multiple subplots (panels a, b, c), extract a separate Markdown table for EACH panel. Do not stop early. 3. Pure Numeric Values: Output clean numerical values without approximation symbols (never use '~', 'approx'). 4. Avoid Dummy Progressions: Never output artificial linear progression sequences."
+
+model:
+  name_or_path: "Qwen/Qwen3-VL-8B-Instruct"
+  model_type: "qwen3_vl"
+  trust_remote_code: true
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"
+  use_cache: true
+
+evaluation:
+  batch_size: 1
+  max_new_tokens: 1024
+  temperature: 0.0
+  do_sample: false
+  numerical_relative_tolerance: 0.05
+  output_eval_dir: "/media/ssd2/datasets/sci-image-markdown-data/outputs/eval_results/zero_shot_qwen3_vl_8b"
