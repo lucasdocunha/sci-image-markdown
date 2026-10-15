@@ -102,11 +102,3 @@ O modelo pivotou tempos de pulso em colunas independentes e usou notação com t
 
 **Causa Raiz Técnica:**
 Cientificamente, tabular como colunas largas (| Depth | 12 s | 8 s | 2 s |) faz sentido humano, mas o Ground Truth do benchmark foi anotado em formato tidy longo (| Species | Pulse time | Depth | Intensity |). Além disso, o modelo usou o caractere til "~" para denotar valor aproximado visualmente, o que causou falha no parser numérico.
-
----
-
-## 🎯 Como Direcionar o Modelo para Corrigir este Caso
-
-- **Prompt**: "Always output clean float values without approximation marks (~, approx, c.a.). Do not use scientific notation with carets like ~10^7; output explicit decimals or standard scientific notation (1e7)."
-- **Diretriz de Formato**: "When multiple series are plotted, output one row per data point with categorical columns for series attributes (long format), unless instructed otherwise."
-- **Sanitizador de Pós-Processamento**: Regex que remove "~" e converte "10^n" para inteiros/floats antes da avaliação.
