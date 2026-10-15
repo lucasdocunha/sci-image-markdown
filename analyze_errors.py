@@ -15,6 +15,7 @@ import pandas as pd
 from src.analysis.convert import to_official_predictions
 from src.analysis.reference import load_panels
 from src.analysis.scoring import score_panel
+from src.analysis.taxonomy import classify_panel, flag_suspicious_gt
 from src.utils.io import read_jsonl, write_jsonl
 from src.utils.logging import setup_logger
 
@@ -72,6 +73,8 @@ def main(metadata: str, repo_predictions: str, official_predictions: str, out_di
             "rms": score.rms,
             "teds": score.teds,
             "weighted": score.weighted,
+            "categorias": ";".join(classify_panel(p.gt_table, pred_table)),
+            "gt_suspeito": flag_suspicious_gt(p.gt_table),
             "gt_table": p.gt_table,
             "pred_table": pred_table or "",
         })
