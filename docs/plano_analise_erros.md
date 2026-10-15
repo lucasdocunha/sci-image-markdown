@@ -15,8 +15,8 @@
 | Parte | Tarefas | Status |
 |---|---|---|
 | 1 — Fluxo e peças | T1–T7 | **concluída em 15/10**: 42/42 testes passando (`.venv` Python 3.11, torch 2.14 + CUDA). Cada teste novo foi visto falhando com a implementação sabotada. Desvios: o filtro de cercas do `split_tables` saiu (era redundante, porque cerca já encerra o bloco), e o teste de "uma fonte de predições" passou a checar a mensagem de erro (antes passava pelo motivo errado). O notebook (T7) ainda não foi aberto com dados reais |
-| 2 — Categorias de erro | T8–T9 | **código concluído em 15/10**: 67/67 testes, cada teste novo visto falhando (25 sabotagens). Notebook executado de ponta a ponta com o `panels.csv` real (50 painéis, 50 imagens, sem erro). **Pendente: a revisão manual dos 50 painéis** (Larissa) e a calibração dos limiares |
-| 3 — Priorização e relatório | T10–T11 | **parcial em 15/10**: `category_costs` e `slice_scores` prontos (70/70 testes) e relatório em `docs/analise_erros/` (README + 8 casos, no formato do `exemplos_analise_erros/`). Pendente: oráculo e `write_report` automático |
+| 2 — Categorias de erro | T8–T9 | **código concluído em 15/10**: 67/67 testes, cada teste novo visto falhando (25 sabotagens). Notebook executado de ponta a ponta com o `panels.csv` real (50 painéis, 50 imagens, sem erro). Revisão dos 50 painéis e calibração **concluídas em 15/10** (ver T9) |
+| 3 — Priorização e relatório | T10–T11 | **parcial em 15/10**: `category_costs` e `slice_scores` prontos (70/70 testes) e relatório em `docs/analise_erros/analise_erros_dev.md` (+ 8 casos, no formato do `exemplos_analise_erros/`). Pendente: oráculo e `write_report` automático |
 
 ---
 
@@ -173,7 +173,7 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 
 **Files:** Modify `src/analysis/taxonomy.py` (`flag_suspicious_gt(gt_table: str) -> bool`); Create `src/analysis/calibration.py` (`rule_precision(panels_csv: str, review_csv: str) -> pd.DataFrame`: precisão e recall de cada regra contra a marcação manual).
 - [x] Testes de cada condição do `gt_suspeito`. FAIL → implementar → PASS. O `review.csv` do notebook ganhou `categorias_regra` (só leitura), e a calibração devolve zeros quando nada foi revisado ainda.
-- [ ] Revisar os 50 painéis, rodar a calibração, ajustar os limiares e registrar aqui o desvio.
+- [x] Revisar os 50 painéis, rodar a calibração, ajustar os limiares e registrar aqui o desvio. **Feito em 15/10.** Desvio: a revisão foi feita por 5 revisores Claude (10 painéis cada), sem ver a saída das regras e com um guia de definições comum. Conferi à mão 5 casos (27, 29, 30, 36 e 45), todos coerentes com a imagem. Precisão/recall por regra: `painel_faltando` 1,00/1,00 · `tabela_invalida` 1,00/1,00 · `colunas_divergentes` 0,93/0,81 · `amostragem_linhas` 0,50→**0,80**/0,89 (limite inferior de 0,67 para 0,55 e ignora gabarito de 1 linha; ajustado e medido na mesma amostra, então é otimista) · `grade_regular_inventada` 0,67/0,60 · `cabecalho_desalinhado` 0,50/0,33 e `escala_magnitude` 0/— (poucos casos, sem ajuste). `gt_suspeito`: o revisor marcou **45/50** (20 dos 25 aleatórios) com valor ou eixo errado; a regra pega só formato (precisão 0,88, recall 0,16). Achado: 34% das tabelas de treino têm X em grade regular, contra 70% nas predições do LoRA.
 
 ## Parte 3 — depende da Parte 2
 
