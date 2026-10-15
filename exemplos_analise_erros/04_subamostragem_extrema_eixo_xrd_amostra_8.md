@@ -324,14 +324,3 @@
 
 **O que aconteceu:**
 A curva contínua continha 274 pontos medidos em função do ângulo θ. O modelo resumiu em apenas 6 linhas e usou a temperatura das amostras (33, 58, 80 °C) como se fosse o eixo X em vez do ângulo de difração.
-
-**Causa Raiz Técnica:**
-O modelo confundiu a variável de série (temperatura em °C das diferentes camadas na legenda) com a variável independente do eixo das abscissas (ângulo 2θ). Adicionalmente, por limitação de tokens e viés de tabelas curtas, gerou apenas 6 linhas para uma curva densa contínua.
-
----
-
-## 🎯 Como Direcionar o Modelo para Corrigir este Caso
-
-- **Prompt**: "Carefully differentiate independent axis variables (X-axis) from curve parameter conditions (legend labels like Temperature). Ensure the primary X column corresponds to the horizontal axis label."
-- **Ajuste de max_gen_tokens**: Permitir tabelas mais longas quando curvas contínuas exigem digitalização densa, ou instruir o modelo a tabular pontos a cada intervalo angular específico (ex: Δθ = 0.5°).
-- **Loss**: Aumentar o peso de penalização para colunas de eixos ausentes.
