@@ -36,3 +36,4 @@ def test_missing_figure_scores_zero(tmp_path):
 def test_requires_exactly_one_prediction_source(tmp_path):
     result = CliRunner().invoke(main, ["--metadata", METADATA, "--out-dir", str(tmp_path)])
     assert result.exit_code != 0
+    assert "exactly one of --repo-predictions or --official-predictions" in result.output
