@@ -16,7 +16,7 @@
 |---|---|---|
 | 1 — Fluxo e peças | T1–T7 | **concluída em 15/10**: 42/42 testes passando (`.venv` Python 3.11, torch 2.14 + CUDA). Cada teste novo foi visto falhando com a implementação sabotada. Desvios: o filtro de cercas do `split_tables` saiu (era redundante, porque cerca já encerra o bloco), e o teste de "uma fonte de predições" passou a checar a mensagem de erro (antes passava pelo motivo errado). O notebook (T7) ainda não foi aberto com dados reais |
 | 2 — Categorias de erro | T8–T9 | **código concluído em 15/10**: 67/67 testes, cada teste novo visto falhando (25 sabotagens). Notebook executado de ponta a ponta com o `panels.csv` real (50 painéis, 50 imagens, sem erro). **Pendente: a revisão manual dos 50 painéis** (Larissa) e a calibração dos limiares |
-| 3 — Priorização e relatório | T10–T11 | aprovada, depende da Parte 2 |
+| 3 — Priorização e relatório | T10–T11 | **parcial em 15/10**: `category_costs` e `slice_scores` prontos (70/70 testes) e relatório em `docs/analise_erros/` (README + 8 casos, no formato do `exemplos_analise_erros/`). Pendente: oráculo e `write_report` automático |
 
 ---
 
@@ -180,7 +180,7 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 ### T10: Custo, oráculo e relatório
 
 **Files:** Create `src/analysis/report.py` (`category_costs(df) -> pd.DataFrame` com `n`, `custo_total`, `custo_exclusivo`; `oracle_gains(df) -> pd.DataFrame`; `write_report(df, out_md: str, model_name: str)`); CLI ganha `--report`.
-- [ ] Teste: 2 painéis de 50 pontos em `escala_magnitude` num total de 4 → `custo_total == 25.0`.
+- [x] Teste: 2 painéis de 50 pontos em `escala_magnitude` num total de 4 → `custo_total == 25.0`. Desvio: em vez de `write_report`, o relatório foi escrito à mão a partir de `category_costs`/`slice_scores`, com diagnósticos conferidos nas imagens.
 - [ ] Teste: o oráculo de `~0.5` → `0.5` aumenta o `rms` do painel de exemplo.
 
 ### T11: Primeiro relatório (precisa de GPU)
