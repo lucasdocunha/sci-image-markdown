@@ -14,7 +14,7 @@
 
 | Parte | Tarefas | Status |
 |---|---|---|
-| 1 — Fluxo e peças | T1–T7 | código e testes criados em 08/10; **nenhum teste executado** (pedido: criar sem testar), só `py_compile` ok. Pendente: instalar as dependências novas, rodar `pytest tests/test_analysis_* tests/test_analyze_errors_cli.py tests/test_evaluate_saved_fields.py` e ver cada teste falhar antes de passar (revertendo a implementação) |
+| 1 — Fluxo e peças | T1–T7 | **concluída em 15/10**: 42/42 testes passando (`.venv` Python 3.11, torch 2.14 + CUDA). Cada teste novo foi visto falhando com a implementação sabotada. Desvios: o filtro de cercas do `split_tables` saiu (era redundante, porque cerca já encerra o bloco), e o teste de "uma fonte de predições" passou a checar a mensagem de erro (antes passava pelo motivo errado). O notebook (T7) ainda não foi aberto com dados reais |
 | 2 — Categorias de erro | T8–T9 | **aguardando ok** |
 | 3 — Priorização e relatório | T10–T11 | aprovada, depende da Parte 2 |
 
@@ -186,6 +186,6 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 ### T11: Primeiro relatório (precisa de GPU)
 
 - [ ] Baixar o dev: `python prepare_data.py --download-hf` (gera `data/processed/val.jsonl` e `data/raw/validation_metadata.jsonl`).
-- [ ] LoRA: `python evaluate.py --config configs/default.yaml --training-config configs/evaluation/original_resolution.yaml --test-file data/processed/val.jsonl --adapter-path <adapter do HF> --output-report outputs/analise_erros/lora3b/report_local.json`.
+- [ ] LoRA: `python evaluate.py --training-config configs/evaluation/original_resolution.yaml --test-file data/processed/val.jsonl --adapter-path lucasoc/sci-image-models --output-report outputs/analise_erros/lora3b/report_local.json --save-predictions outputs/analise_erros/lora3b/predictions.jsonl`. O prompt de usuário mudou na `main` em 14/10 (pede uma tabela por painel), então anotar o commit usado.
 - [ ] Base: o mesmo comando sem `--adapter-path`, com saída em `outputs/analise_erros/base3b/`.
 - [ ] `analyze_errors.py ... --report` nos dois, e salvar em `docs/analise_erros/lora3b_dev.md` e `base3b_dev.md`.
