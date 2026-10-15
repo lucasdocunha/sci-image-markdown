@@ -79,14 +79,3 @@
 
 **O que aconteceu:**
 Em vez de identificar os picos discretos dos elementos químicos (C, O, Zr), o modelo gerou uma grade linear regular (0.1, 0.2, 0.3...) e omitiu a coluna categórica de identificação elementar.
-
-**Causa Raiz Técnica:**
-O gráfico de retroespalhamento de Rutherford (RBS) tem uma linha de base contínua com picos agudos característicos. O modelo tratou o espectro contínuo como uma tabela de ticks do eixo X, em vez de localizar apenas os picos de contagem e associar aos elementos identificados no gráfico.
-
----
-
-## 🎯 Como Direcionar o Modelo para Corrigir este Caso
-
-- **Prompt**: "For continuous spectroscopy charts (RBS, XRD, Raman, XPS), locate and extract ONLY physical peak maxima, peak assignments (element labels), and their exact coordinates. Do not extract regular grid intervals."
-- **Dataset / Fine-Tuning**: Adicionar mais pares de espectroscopia RBS/XPS com colunas categóricas de atribuição elementar (| Element | Peak Energy | Counts |).
-- **Atenção Visual**: O modelo 7B tem capacidade de reconhecer anotações flutuantes (ex: setas apontando para "Zr"), mas precisa ser condicionado a transformar o texto sobre o pico em uma coluna "Assignment".
