@@ -2,6 +2,8 @@
 #SBATCH --job-name=tr-qwen3-8b
 #SBATCH --partition=dev
 #SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=30G
 #SBATCH --output=logs/slurm_train_qwen3_8b_%j.out
 #SBATCH --error=logs/slurm_train_qwen3_8b_%j.err
 #SBATCH --time=24:00:00

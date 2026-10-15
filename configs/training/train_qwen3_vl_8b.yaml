@@ -39,7 +39,7 @@ training:
   warmup_steps: 20
   weight_decay: 0.01
   logging_steps: 10
-  eval_strategy: "epoch"
+  eval_strategy: "no"
   save_strategy: "epoch"
   save_total_limit: 2
   gradient_checkpointing: true
