@@ -163,16 +163,6 @@ O `panels.csv` gerado tem uma linha por painel, com nota, categorias e tamanho d
 
 ---
 
-## ⏭️ Próximos passos
-
-1. **Levar ao André o resultado do gabarito** (valor ou eixo errado em 20 de 25 painéis aleatórios) e decidir como tratar esse ruído.
-2. **Decidir com o grupo** se os painéis que não são gráfico (diagramas com gabarito de texto) entram na nota que usamos para comparar modelos.
-3. **Testar a hipótese da grade:** treinar sem as tabelas de treino com X em grade regular (ou com elas corrigidas) e ver se a grade inventada cai.
-4. **Oráculo:** consertar por código o `~` e a escala e medir quanto de nota isso recupera.
-5. Rodar o mesmo `analyze_errors.py` nas predições do 7B e dos experimentos novos (sintético, outros modelos).
-
----
-
 ## 📂 Arquivos
 
 - [`analise_erros_dev.md`](./analise_erros_dev.md): este índice.
