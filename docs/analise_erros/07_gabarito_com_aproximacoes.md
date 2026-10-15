@@ -19,7 +19,7 @@
 | **RMS** | `0.0` | `0.0` | Acerto dos números, casando célula por cabeçalho |
 | **TEDS** | `46.5` | `0.0` | Semelhança da estrutura da tabela |
 | **Linhas × colunas** | `6×2` | `0×0` | Gabarito: `6×8` |
-| **Categorias (regra)** | `colunas_divergentes` | `painel_faltando` | Regras automáticas, **ainda não calibradas** |
+| **Categorias (regra)** | `colunas_divergentes` | `painel_faltando` | Regras automáticas (calibradas em 50 painéis) |
 | **Gabarito suspeito (regra)** | `sim` | | |
 
 ---
@@ -64,4 +64,4 @@ O RMS oficial tenta ler cada célula como número. Com `~`, falha e compara como
 
 ## 🎯 Como direcionar
 - Contar esses casos à parte (`gt_suspeito`) e levar o número ao André, como o Lucas sugeriu.
-- Na regra atual, 47 painéis (28%) foram marcados como suspeitos, o que provavelmente é largo demais. A revisão manual vai dizer quantos são de fato.
+- A regra automática só pega esse tipo de erro de formato. Na revisão de 50 painéis, 20 dos 25 escolhidos ao acaso tinham gabarito com valor ou eixo errado.

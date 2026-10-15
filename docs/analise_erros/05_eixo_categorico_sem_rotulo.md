@@ -19,7 +19,7 @@
 | **RMS** | `0.0` | `0.0` | Acerto dos números, casando célula por cabeçalho |
 | **TEDS** | `67.9` | `61.3` | Semelhança da estrutura da tabela |
 | **Linhas × colunas** | `5×4` | `7×4` | Gabarito: `5×4` |
-| **Categorias (regra)** | `cabecalho_desalinhado` | `cabecalho_desalinhado;grade_regular_inventada` | Regras automáticas, **ainda não calibradas** |
+| **Categorias (regra)** | `cabecalho_desalinhado` | `cabecalho_desalinhado;grade_regular_inventada` | Regras automáticas (calibradas em 50 painéis) |
 | **Gabarito suspeito (regra)** | `não` | | |
 
 ---

@@ -19,7 +19,7 @@
 | **RMS** | `0.0` | `9.6` | Acerto dos números, casando célula por cabeçalho |
 | **TEDS** | `55.0` | `62.1` | Semelhança da estrutura da tabela |
 | **Linhas × colunas** | `4×2` | `6×2` | Gabarito: `13×2` |
-| **Categorias (regra)** | `amostragem_linhas` | `amostragem_linhas` | Regras automáticas, **ainda não calibradas** |
+| **Categorias (regra)** | `amostragem_linhas` | `amostragem_linhas` | Regras automáticas (calibradas em 50 painéis) |
 | **Gabarito suspeito (regra)** | `não` | | |
 
 ---

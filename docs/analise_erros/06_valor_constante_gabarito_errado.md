@@ -19,7 +19,7 @@
 | **RMS** | `0.0` | `18.0` | Acerto dos números, casando célula por cabeçalho |
 | **TEDS** | `94.4` | `95.0` | Semelhança da estrutura da tabela |
 | **Linhas × colunas** | `5×2` | `5×2` | Gabarito: `5×2` |
-| **Categorias (regra)** | `escala_magnitude` | `—` | Regras automáticas, **ainda não calibradas** |
+| **Categorias (regra)** | `escala_magnitude` | `—` | Regras automáticas (calibradas em 50 painéis) |
 | **Gabarito suspeito (regra)** | `não` | | |
 
 ---
@@ -56,7 +56,7 @@
 No painel (c), a espessura cai de 0 para **~−4.4 nm** em 25 ciclos (eixo Y compartilhado à esquerda). O **gabarito está errado**: vai só até −2.0, com metade da inclinação, e não tem o ponto de 25 ciclos. A **predição também está errada**: dá −0.1 em todas as linhas, como se copiasse os painéis (a) e (b), que são quase planos.
 
 **Por que importa:**
-A regra marcou `escala_magnitude`, porque a razão previsto/gabarito ≈ 0.08, perto de 10⁻¹. **Não é erro de escala, é valor constante.** É um falso positivo, e mostra por que as regras precisam ser calibradas com a revisão manual antes de virar número final.
+A regra marcou `escala_magnitude`, porque a razão previsto/gabarito ≈ 0.08, perto de 10⁻¹. **Não é erro de escala, é valor constante.** É um falso positivo. A revisão de 50 painéis confirmou: a regra de escala errou no único caso em que disparou.
 
 ---
 
