@@ -15,7 +15,7 @@
 | Parte | Tarefas | Status |
 |---|---|---|
 | 1 — Fluxo e peças | T1–T7 | **concluída em 15/10**: 42/42 testes passando (`.venv` Python 3.11, torch 2.14 + CUDA). Cada teste novo foi visto falhando com a implementação sabotada. Desvios: o filtro de cercas do `split_tables` saiu (era redundante, porque cerca já encerra o bloco), e o teste de "uma fonte de predições" passou a checar a mensagem de erro (antes passava pelo motivo errado). O notebook (T7) ainda não foi aberto com dados reais |
-| 2 — Categorias de erro | T8–T9 | **aguardando ok** |
+| 2 — Categorias de erro | T8–T9 | **código concluído em 15/10**: 67/67 testes, cada teste novo visto falhando (25 sabotagens). Notebook executado de ponta a ponta com o `panels.csv` real (50 painéis, 50 imagens, sem erro). **Pendente: a revisão manual dos 50 painéis** (Larissa) e a calibração dos limiares |
 | 3 — Priorização e relatório | T10–T11 | aprovada, depende da Parte 2 |
 
 ---
@@ -61,7 +61,7 @@ metadata.jsonl (HF, split validation) ─► reference ──┤
 | `grade_regular_inventada` | 1ª coluna prevista com passo constante (desvio < 1% do passo médio) e a do gabarito não |
 | `numero_nao_numerico` | células previstas com `~`, `10^`, `approx`, `≈` |
 
-Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente numérica com texto, célula com `;` ou intervalo `\d+\s*-\s*\d+`.
+Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente numérica com texto, célula com `;` ou intervalo `\d+\s*-\s*\d+`, vírgula decimal (`21,78`) ou `~`/`≈`/`approx`/`10^` (os dois últimos vieram dos casos reais do Lucas e do dev).
 
 **Parte 3 — Prioridade e relatório:** perda do painel = `100 − weighted`. Custo da categoria = Σ perda dos painéis dela ÷ nº total de painéis. Versão exclusiva = só painéis com aquela única categoria. Oráculos: (a) limpar `~`/`≈`/`approx` e converter `a×10^b`; (b) multiplicar pelo fator de escala detectado. Re-pontua e reporta o ganho. Recortes com *n* ao lado de cada %, sem conclusões com n < 5. Relatórios em `docs/analise_erros/<modelo>_dev.md`; saídas brutas em `outputs/analise_erros/` (gitignored).
 
@@ -92,8 +92,8 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 - Create: `third_party/sci_imageminer_eval/ORIGEM.md` (URL, data da cópia, "não editar")
 - Modify: `requirements.txt`, `pyproject.toml` (dependências da Global Constraints)
 
-- [ ] Copiar os arquivos sem editar.
-- [ ] Verificar: `python -c "import sys; sys.path.insert(0,'third_party/sci_imageminer_eval'); from deplot_metric import metrics; from teds_pubtables import teds_pubtables_official"` → sem erro.
+- [x] Copiar os arquivos sem editar.
+- [x] Verificar: `python -c "import sys; sys.path.insert(0,'third_party/sci_imageminer_eval'); from deplot_metric import metrics; from teds_pubtables import teds_pubtables_official"` → sem erro.
 
 ### T2: `evaluate.py` grava `id` e `raw_output`
 
@@ -101,8 +101,8 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 
 **Produces:** cada linha do `predictions.jsonl` passa a ter também `"id": rec.get("id")` e `"raw_output": res["raw_output"]` (`""` em caso de erro).
 
-- [ ] Teste `test_saved_predictions_have_id_and_raw_output`: `CliRunner` com `TablePredictor` monkeypatched (`predict_image` → `{"raw_output": "| a |\n|---|\n| 1 |\n\n| b |\n|---|\n| 2 |", "markdown_table": "| a |\n|---|\n| 1 |", "is_valid_table": True}`), `val.jsonl` de 1 registro em `tmp_path`; asserta `item["id"] == "fig_x"` e `"| b |" in item["raw_output"]`.
-- [ ] Rodar → FAIL (KeyError `id`). Implementar. Rodar → PASS.
+- [x] Teste `test_saved_predictions_have_id_and_raw_output`: `CliRunner` com `TablePredictor` monkeypatched (`predict_image` → `{"raw_output": "| a |\n|---|\n| 1 |\n\n| b |\n|---|\n| 2 |", "markdown_table": "| a |\n|---|\n| 1 |", "is_valid_table": True}`), `val.jsonl` de 1 registro em `tmp_path`; asserta `item["id"] == "fig_x"` e `"| b |" in item["raw_output"]`.
+- [x] Rodar → FAIL (KeyError `id`). Implementar. Rodar → PASS.
 
 ### T3: Gabarito por painel
 
@@ -113,8 +113,8 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 - `load_panels(metadata_path: str) -> List[PanelRef]`: só painéis com `data` não vazio, na ordem da lista `data_extraction`.
 - `to_official_reference(panels: List[PanelRef]) -> List[dict]`: `[{"sample_id", "data_extraction": {panel_id: gt_table}}]`.
 
-- [ ] Testes: a 3ª figura gera 1 `PanelRef` com `panel_id == "b"` e `n_panels == 1`; `figure_type` vem de `classification[panel_id]`.
-- [ ] FAIL → implementar → PASS.
+- [x] Testes: a 3ª figura gera 1 `PanelRef` com `panel_id == "b"` e `n_panels == 1`; `figure_type` vem de `classification[panel_id]`.
+- [x] FAIL → implementar → PASS.
 
 ### T4: Conversor
 
@@ -125,8 +125,8 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 - `split_tables(text: str) -> List[str]`: remove todas as cercas ```` ``` ````, depois junta sequências máximas de linhas cujo `strip()` começa com `|`. Cada sequência com ≥ 2 linhas vira uma tabela (linhas com `strip`: o conversor faz o papel de quem monta a submissão, e o validador oficial reprova linha com espaço à esquerda).
 - `to_official_predictions(pred_records: List[dict], panels: List[PanelRef]) -> Tuple[List[dict], List[dict]]`: devolve `(predicoes_oficiais, info)`. Casa o registro com a figura por `id` e, na falta dele, por basename de `image` == `image_file`. Usa `raw_output` e, na falta dele, `markdown_table` com `warnings.warn`. Tabelas mapeadas por ordem aos painéis da figura. `info` traz uma linha por figura: `{"sample_id", "n_pred_tables", "extra_tables"}`.
 
-- [ ] Testes: `test_split_tables_ignores_fences_and_text`; `test_maps_tables_by_order` (2 tabelas → `a`, `b`); `test_extra_tables_are_counted` (3 tabelas para 2 painéis → `extra_tables == 1`); `test_matches_by_basename_without_id`; `test_missing_raw_output_warns` (`pytest.warns(UserWarning)`).
-- [ ] FAIL → implementar → PASS.
+- [x] Testes: `test_split_tables_ignores_fences_and_text`; `test_maps_tables_by_order` (2 tabelas → `a`, `b`); `test_extra_tables_are_counted` (3 tabelas para 2 painéis → `extra_tables == 1`); `test_matches_by_basename_without_id`; `test_missing_raw_output_warns` (`pytest.warns(UserWarning)`).
+- [x] FAIL → implementar → PASS.
 
 ### T5: Nota oficial por painel
 
@@ -135,9 +135,9 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 **Consumes:** código de T1 (carregar `sci-imageminer_evaluation.py` via `importlib.util.spec_from_file_location`, porque o nome tem hífen).
 **Produces:** `@dataclass PanelScore: pred_valid: bool, rms: float, teds: float, weighted: float` e `score_panel(gt_table: str, pred_table: Optional[str]) -> PanelScore`, seguindo a Global Constraints.
 
-- [ ] Teste `test_mean_matches_official_script`: roda o script oficial por `subprocess` (`--task data_extraction --reference-path ... --prediction-path ... --output-scores-path tmp`) e compara `rms`, `teds` e `weighted_score` com a média de `score_panel` nos mesmos painéis (`pytest.approx(abs=1e-9)`).
-- [ ] Teste `test_table_without_spaces_gets_zero_rms` (Review Focus 1): `score_panel(gt, "|x|y|\n|---|---|\n|33|7.5|").rms == 0`.
-- [ ] FAIL → implementar → PASS.
+- [x] Teste `test_mean_matches_official_script`: roda o script oficial por `subprocess` (`--task data_extraction --reference-path ... --prediction-path ... --output-scores-path tmp`) e compara `rms`, `teds` e `weighted_score` com a média de `score_panel` nos mesmos painéis (`pytest.approx(abs=1e-9)`).
+- [x] Teste `test_table_without_spaces_gets_zero_rms` (Review Focus 1): `score_panel(gt, "|x|y|\n|---|---|\n|33|7.5|").rms == 0`.
+- [x] FAIL → implementar → PASS.
 
 ### T6: CLI `analyze_errors.py`
 
@@ -150,16 +150,16 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 - `summary.json`: `{"n_panels", "rms", "teds", "weighted"}` (médias sobre todos os painéis com gabarito), mais `extra_tables` (soma) quando a entrada é `--repo-predictions`.
 - `official_predictions.jsonl` (resultado do conversor, reaproveitável no script oficial).
 
-- [ ] Teste `test_missing_figure_scores_zero` (Review Focus 3): fixture com uma figura ausente nas predições → os painéis dela aparecem no CSV com `weighted == 0` e `summary["n_panels"]` conta todos.
-- [ ] FAIL → implementar → PASS.
+- [x] Teste `test_missing_figure_scores_zero` (Review Focus 3): fixture com uma figura ausente nas predições → os painéis dela aparecem no CSV com `weighted == 0` e `summary["n_panels"]` conta todos.
+- [x] FAIL → implementar → PASS.
 
 ### T7: Notebook de revisão
 
 **Files:** Create `notebooks/revisao_erros.ipynb`
 
 **Consumes:** `panels.csv` (T6), imagens em `data/raw/images/`, `bbox` via `load_panels`.
-- [ ] Células: (1) parâmetros `PANELS_CSV`, `REVIEW_CSV`, `SEED = 42`; (2) amostra = 25 menores `weighted` + 25 aleatórios do resto; (3) para cada painel, crop pelo `bbox` + `gt_table` e `pred_table` lado a lado; (4) grava ou atualiza `review.csv` com `sample_id, panel_id, categorias, gt_suspeito, observacao`, preenchido à mão.
-- [ ] Verificação manual: abrir com um `panels.csv` real e conferir 3 painéis.
+- [x] Células: (1) parâmetros `PANELS_CSV`, `REVIEW_CSV`, `SEED = 42`; (2) amostra = 25 menores `weighted` + 25 aleatórios do resto; (3) para cada painel, crop pelo `bbox` + `gt_table` e `pred_table` lado a lado; (4) grava ou atualiza `review.csv` com `sample_id, panel_id, categorias, gt_suspeito, observacao`, preenchido à mão.
+- [ ] Verificação manual: abrir com um `panels.csv` real e conferir 3 painéis (15/10: notebook executado headless sem erro e 1 painel conferido, o recorte do bbox está certo).
 
 ## Parte 2 — aguardando ok
 
@@ -167,12 +167,12 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 
 **Files:** Create `src/analysis/taxonomy.py`; Test `tests/test_analysis_taxonomy.py`
 **Produces:** `classify_panel(gt_table: str, pred_table: Optional[str]) -> List[str]`, com os nomes exatos da tabela da Parte 2, mais `CATEGORIES: Tuple[str, ...]`. O CLI ganha a coluna `categorias` (separada por `;`).
-- [ ] Um teste por regra, com um par mínimo gt/pred que dispara e outro que não dispara. FAIL → implementar → PASS.
+- [x] Um teste por regra, com um par mínimo gt/pred que dispara e outro que não dispara. FAIL → implementar → PASS. `is_valid_table` foi extraída para `scoring.py` (usada pelo `score_panel` e pela `tabela_invalida`); a comparação de cabeçalho usa `utils.default_process` (ignora maiúsculas e pontuação).
 
 ### T9: Gabarito suspeito + calibração
 
 **Files:** Modify `src/analysis/taxonomy.py` (`flag_suspicious_gt(gt_table: str) -> bool`); Create `src/analysis/calibration.py` (`rule_precision(panels_csv: str, review_csv: str) -> pd.DataFrame`: precisão e recall de cada regra contra a marcação manual).
-- [ ] Testes das três condições do `gt_suspeito`. FAIL → implementar → PASS.
+- [x] Testes de cada condição do `gt_suspeito`. FAIL → implementar → PASS. O `review.csv` do notebook ganhou `categorias_regra` (só leitura), e a calibração devolve zeros quando nada foi revisado ainda.
 - [ ] Revisar os 50 painéis, rodar a calibração, ajustar os limiares e registrar aqui o desvio.
 
 ## Parte 3 — depende da Parte 2
@@ -185,7 +185,8 @@ Gabarito suspeito (`gt_suspeito`): mais de 50 linhas, coluna majoritariamente nu
 
 ### T11: Primeiro relatório (precisa de GPU)
 
-- [ ] Baixar o dev: `python prepare_data.py --download-hf` (gera `data/processed/val.jsonl` e `data/raw/validation_metadata.jsonl`).
-- [ ] LoRA: `python evaluate.py --training-config configs/evaluation/original_resolution.yaml --test-file data/processed/val.jsonl --adapter-path lucasoc/sci-image-models --output-report outputs/analise_erros/lora3b/report_local.json --save-predictions outputs/analise_erros/lora3b/predictions.jsonl`. O prompt de usuário mudou na `main` em 14/10 (pede uma tabela por painel), então anotar o commit usado.
-- [ ] Base: o mesmo comando sem `--adapter-path`, com saída em `outputs/analise_erros/base3b/`.
+- [x] Baixar o dev: `python prepare_data.py --download-hf` (gera `data/processed/val.jsonl` e `data/raw/validation_metadata.jsonl`).
+- [x] LoRA: `python evaluate.py --training-config configs/evaluation/original_resolution.yaml --test-file data/processed/val.jsonl --adapter-path lucasoc/sci-image-models --output-report outputs/analise_erros/lora3b/report_local.json --save-predictions outputs/analise_erros/lora3b/predictions.jsonl`. O prompt de usuário mudou na `main` em 14/10 (pede uma tabela por painel), então anotar o commit usado.
+- [x] Base: o mesmo comando sem `--adapter-path`, com saída em `outputs/analise_erros/base3b/`.
+- [x] Predições geradas em 15/10 (commit `713a02e`, adapter antigo + prompt da `main`) e nota oficial conferida contra o script oficial (idêntica): LoRA 3B **35,04** (RMS 15,56 · TEDS 54,53), base 3B **23,20** (RMS 8,79 · TEDS 37,61), 167 painéis do dev. O LoRA repete a mesma tabela em ~30 figuras (69 tabelas extras), provável efeito do prompt novo.
 - [ ] `analyze_errors.py ... --report` nos dois, e salvar em `docs/analise_erros/lora3b_dev.md` e `base3b_dev.md`.
