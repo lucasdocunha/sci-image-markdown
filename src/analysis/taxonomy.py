@@ -25,7 +25,8 @@ CATEGORIES = (
     "numero_nao_numerico",
 )
 
-ROW_RATIO_RANGE = (0.67, 1.5)
+# Calibrated on the 50-panel review of 15/10: every confirmed sampling error had ratio <= 0.5.
+ROW_RATIO_RANGE = (0.55, 1.5)
 HEADER_SIMILARITY_MIN = 60
 MAGNITUDE_MIN_LOG10 = 0.9
 MAGNITUDE_MAX_DIST_TO_INT = 0.15
@@ -100,7 +101,7 @@ def classify_panel(gt_table: str, pred_table: Optional[str]) -> List[str]:
     if len(pred_headers) != len(gt_headers):
         found.append("colunas_divergentes")
 
-    if gt_rows:
+    if len(gt_rows) >= 2:
         ratio = len(pred_rows) / len(gt_rows)
         if not ROW_RATIO_RANGE[0] <= ratio <= ROW_RATIO_RANGE[1]:
             found.append("amostragem_linhas")

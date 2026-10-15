@@ -51,6 +51,18 @@ def test_row_sampling_within_tolerance():
     assert "amostragem_linhas" not in classify_panel(GT, pred)
 
 
+def test_row_sampling_small_gap_is_fine():
+    # 3 of 5 rows: the manual review did not count gaps this small as a sampling error
+    pred = table(["Time (s)", "Mass (ng/cm2)"], [[0, 0], [15, 34.9], [46, 53.7]])
+    assert "amostragem_linhas" not in classify_panel(GT, pred)
+
+
+def test_single_row_gt_is_not_sampling():
+    gt = table(["Model", "Description"], [["PG", "pristine graphene"]])
+    pred = table(["Model", "Description"], [["a", "PG"], ["b", "MV"], ["c", "DV"]])
+    assert "amostragem_linhas" not in classify_panel(gt, pred)
+
+
 def test_misaligned_header():
     pred = table(["Temperature (K)", "Pressure (Torr)"], [[0, 0], [7, 21.8], [15, 34.9], [42, 32.0], [46, 53.7]])
     assert "cabecalho_desalinhado" in classify_panel(GT, pred)
