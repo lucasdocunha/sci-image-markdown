@@ -12,12 +12,12 @@ from .reference import PanelRef
 def split_tables(text: str) -> List[str]:
     """Returns every pipe-delimited table block in the text, in order.
 
-    Code fences are dropped first; a block is a maximal run of lines starting
-    with "|", and only runs of 2+ lines count as a table.
+    A block is a maximal run of lines starting with "|" (code fences and prose
+    end a run), and only runs of 2+ lines count as a table.
     """
     if not text:
         return []
-    lines = [ln.strip() for ln in text.splitlines() if not ln.strip().startswith("```")]
+    lines = [ln.strip() for ln in text.splitlines()]
     tables, run = [], []
     for ln in lines + [""]:
         if ln.startswith("|"):
