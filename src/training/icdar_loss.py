@@ -146,13 +146,21 @@ class ICDARTokenWeightedLoss(nn.Module):
         for token, idx in vocab_dict.items():
             if idx >= self.vocab_size:
                 continue
-            clean_tok = token.replace("Ġ", "").replace(" ", "").strip()
-            if clean_tok and all(c in "0123456789.-" for c in clean_tok):
-                weights[idx] = self.numeric_weight
-            elif clean_tok in ("|", "-", "--", "---", "\n"):
+            decoded = self.tokenizer.decode([idx])
+            clean = decoded.strip()
+            if not clean:
+                if "\n" in decoded:
+                    weights[idx] = self.structural_weight
+                continue
+            # Structural: table borders, pipes, row delimiters, alignment markers, newlines
+            if "|" in decoded or all(c in "-:|\n\r " for c in decoded) or decoded in ("\n", "\n\n"):
                 weights[idx] = self.structural_weight
+            # Numeric: digits, decimal points, signs, scientific exponents
+            elif all(c in "0123456789.-+eE" for c in clean) and (any(c.isdigit() for c in clean) or clean in (".", "-", "+")):
+                weights[idx] = self.numeric_weight
 
         self.register_buffer("token_weights", weights)
+
 
     @property
     def weights(self) -> torch.Tensor:
@@ -438,22 +446,21 @@ class ICDARMetricLoss(nn.Module):
         self,
         model: nn.Module,
         inputs: Dict[str, torch.Tensor],
+        outputs: Optional[Any] = None,
         sft_loss: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """Computes the final combined loss."""
         metrics_info: Dict[str, float] = {}
 
         if self.loss_type == "token_weighted":
-            if sft_loss is not None:
-                total_loss = sft_loss
-            else:
+            total_loss = outputs.loss if outputs is not None and outputs.loss is not None else sft_loss
+            if total_loss is None:
                 out = model(**inputs)
-                if out.logits is not None:
-                    total_loss = self.weighted_module(out.logits, inputs["labels"])
-                else:
-                    total_loss = out.loss
+                total_loss = out.loss
             metrics_info["token_weighted_loss"] = total_loss.item()
             return total_loss, metrics_info
+
+
 
         # SCST or Hybrid
         if sft_loss is None:

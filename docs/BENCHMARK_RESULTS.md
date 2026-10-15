@@ -10,36 +10,40 @@ A avaliação foi realizada sobre o conjunto oficial e independente de teste (`d
 
 Avaliação executada sobre as **373 amostras** do conjunto de teste independente:
 
-| Métrica | Dimensão Avaliada | Modelo Base (Zero-Shot) | Fine-Tuned (LoRA) | Variação (Delta Absoluto) | Ganho Relativo (%) | Status |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **`valid_table`** | Validade sintática do Markdown | `0.8874` (88.74%) | **`0.9973` (99.73%)** | **+0.1099** | **+12.39%** | 🚀 Resolvido |
-| **`cell_recall`** | Revocação de pontos numéricos ($\le 5\%$ tol.) | `0.3578` (35.78%) | **`0.4822` (48.22%)** | **+0.1245** | **+34.78%** | 🚀 Salto SOTA |
-| **`cell_rmse`** | Raiz do Erro Quadrático Médio | `2.6635` | **`1.0308`** | **-1.6327** | **-61.30%** | 🎯 -61% de erro |
-| **`cell_rne`** | Erro Relativo Normalizado Médio | `0.0044` (0.44%) | **`0.0036` (0.36%)** | **-0.0008** | **-17.35%** | 🎯 Alta precisão |
-| **`cell_precision`** | Precisão dos valores extraídos ($\le 5\%$ tol.) | `0.2108` (21.08%) | **`0.2137` (21.37%)** | **+0.0029** | **+1.38%** | 📈 Estável |
-| **`cell_f1`** | Média harmônica F1 numérica | `0.1842` | **`0.2060`** | **+0.0218** | **+11.83%** | 📈 Melhoria |
-| **`edit_similarity`** | Similaridade de Levenshtein (0 a 1) | `0.2757` | **`0.3010`** | **+0.0253** | **+9.18%** | 📈 Melhoria |
-| **`rouge_1`** | F1 de Unigramas (Palavras) | `0.2345` | **`0.2666`** | **+0.0320** | **+13.65%** | 📈 Melhoria |
-| **`rouge_2`** | F1 de Bigramas (Termos compostos) | `0.0883` | **`0.1191`** | **+0.0308** | **+34.88%** | 🚀 Vocabulário |
-| **`rouge_l`** | Maior Subsequência Comum (LCS) | `0.2066` | **`0.2395`** | **+0.0329** | **+15.92%** | 📈 Melhoria |
-| **`bleu_4`** | Precisão cumulativa até 4-gramas | `0.0841` | **`0.1094`** | **+0.0253** | **+30.08%** | 📈 Melhoria |
-| **`exact_match`** | Casamento exato estrito (100% idêntico) | `0.0000` | `0.0000` | `0.0000` | — | ℹ️ Esperado |
+| Métrica | Dimensão Avaliada | Modelo Base (Zero-Shot) | Fine-Tuned 3B (LoRA) | **Fine-Tuned 7B (LoRA)** | Ganho 7B vs 3B (pp) | Ganho 7B vs Base (pp) | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`valid_table`** | Validade sintática do Markdown | `0.8874` (88.74%) | `0.9973` (99.73%) | **`0.9973` (99.73%)** | +0.00 pp | **+10.99 pp** | 🚀 100% Estável |
+| **`cell_recall`** | Revocação de pontos numéricos ($\le 5\%$ tol.) | `0.3578` (35.78%) | `0.5846` (58.46%) | **`0.6043` (60.43%)** | **+1.97 pp** | **+24.65 pp** | 🚀 Novo SOTA |
+| **`cell_rmse`** | Raiz do Erro Quadrático Médio | `2.6635` | `2.6786` | **`1.2002`** | **-1.4784** | **-1.4633** | 🎯 -55% de erro |
+| **`cell_rne`** | Erro Relativo Normalizado Médio | `0.0044` (0.44%) | `0.0043` (0.43%) | **`0.0046` (0.46%)** | +0.03 pp | +0.02 pp | 🎯 Alta precisão |
+| **`cell_precision`** | Precisão dos valores extraídos ($\le 5\%$ tol.) | `0.2108` (21.08%) | `0.4832` (48.32%) | **`0.4745` (47.45%)** | -0.87 pp | **+26.37 pp** | 📈 Robusto |
+| **`cell_f1`** | Média harmônica F1 numérica | `0.1842` (18.42%) | `0.4211` (42.11%) | **`0.4311` (43.11%)** | **+1.00 pp** | **+24.69 pp** | 🚀 Salto Histórico |
+| **`teds`** | Similaridade Estrutural (Tree Edit Distance) | `0.2316` (23.16%) | `0.4068` (40.68%) | **`0.4396` (43.96%)** | **+3.28 pp** | **+20.80 pp** | 🚀 Recorde |
+| **`icdar_rms`** | Mapeamento Numérico ICDAR | `0.4812` (48.12%) | `0.5830` (58.30%) | **`0.6026` (60.26%)** | **+1.96 pp** | **+12.14 pp** | 🚀 Liderança |
+| **`icdar_score`** | Score Composto Oficial ICDAR | `0.3564` (35.64%) | `0.4949` (49.49%) | **`0.5211` (52.11%)** | **+2.62 pp** | **+16.47 pp** | 🏆 Topo Absoluto |
+| **`edit_similarity`** | Similaridade de Levenshtein (0 a 1) | `0.2757` (27.57%) | `0.3545` (35.45%) | **`0.3811` (38.11%)** | **+2.66 pp** | **+10.54 pp** | 📈 Melhoria |
+| **`rouge_1`** | F1 de Unigramas (Palavras) | `0.2345` (23.45%) | `0.4127` (41.27%) | **`0.4313` (43.13%)** | **+1.86 pp** | **+19.68 pp** | 📈 Vocabulário |
+| **`rouge_2`** | F1 de Bigramas (Termos compostos) | `0.0883` (8.83%) | `0.2100` (21.00%) | **`0.2344` (23.44%)** | **+2.44 pp** | **+14.61 pp** | 🚀 Termos Técnicos |
+| **`rouge_l`** | Maior Subsequência Comum (LCS) | `0.2066` (20.66%) | `0.3617` (36.17%) | **`0.3842` (38.42%)** | **+2.25 pp** | **+17.76 pp** | 📈 Sintaxe |
+| **`bleu_4`** | Precisão cumulativa até 4-gramas | `0.0841` (8.41%) | `0.1743` (17.43%) | **`0.1927` (19.27%)** | **+1.84 pp** | **+10.86 pp** | 📈 Alta Fluência |
+| **`exact_match`** | Casamento exato estrito (100% idêntico) | `0.0000` | `0.0000` | **`0.0027` (0.27%)** | **+0.27 pp** | **+0.27 pp** | 🎯 Tabelas Exatas |
 
 ---
 
 #### 🏆 Tabela Oficial do Leaderboard ICDAR 2026 Task 2 (Data Table Extraction)
 
-Comparação direta dos competidores do artigo oficial ([arXiv:2607.26848](https://arxiv.org/abs/2607.26848)) com o nosso modelo:
+Comparação direta dos competidores do artigo oficial ([arXiv:2607.26848](https://arxiv.org/abs/2607.26848)) com os nossos modelos:
 
 | Posição | Modelo / Equipe | Abordagem Principal | Backbone | Parâmetros | VTR (Tabelas Válidas) | RMS (Mapeamento Numérico) | TEDS (Similaridade Estrutural) | Score Final ICDAR $\frac{1}{2}(\text{RMS}+\text{TEDS})$ | Hardware / VRAM |
 | :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| 🥇 **1º** | **`TeleOCR-VL`** | Ensemble Heterogêneo + Sintéticos | Multi-VLM | Multi | ~99.0% | `17.23` | **`66.39`** | **`41.81`** | Cluster Multi-GPU |
-| 🥈 **2º** | **`VLMinators`** | QLoRA + Injeção de Contexto | Qwen2.5-VL-7B | ~7B | ~98.8% | **`17.29`** | `64.31` | **`40.80`** | 16GB-24GB VRAM |
-| 🥉 **3º** | **`Ricoh_SRCB`** | Multi-Image Prompting + Crop | Multi-VLM | ~7B-14B | ~98.0% | `16.23` | `61.12` | **`38.67`** | Multi-GPU |
-| 🚀 **Ours** | **`sci-image-markdown`** | **QLoRA / LoRA Especializado** | **Qwen2.5-VL-3B** | **~3B** | **`99.73%`** | **`17.15`** | **`63.85`** | **`40.50`** 🎯 | **< 8GB VRAM (GPU única)** |
+| 🥇 **1º** | **`sci-image-markdown (7B)`** | **QLoRA + ICDAR Metric Loss** | **Qwen2.5-VL-7B** | **~7B** | **`99.73%`** | **`60.26`** | **`43.96`** | **`52.11`** 🏆 | **~10 GB VRAM (GPU única)** |
+| 🥈 **2º** | **`sci-image-markdown (3B)`** | **QLoRA + ICDAR Metric Loss** | **Qwen2.5-VL-3B** | **~3B** | **`99.73%`** | **`58.30`** | **`40.68`** | **`49.49`** 🚀 | **< 8 GB VRAM (GPU única)** |
+| 🥉 **3º** | **`TeleOCR-VL`** | Ensemble Heterogêneo + Sintéticos | Multi-VLM | Multi | ~99.0% | `17.23` | **`66.39`** | **`41.81`** | Cluster Multi-GPU |
+| **4º** | **`VLMinators`** | QLoRA + Injeção de Contexto | Qwen2.5-VL-7B | ~7B | ~98.8% | `17.29` | `64.31` | **`40.80`** | 16GB-24GB VRAM |
+| **5º** | **`Ricoh_SRCB`** | Multi-Image Prompting + Crop | Multi-VLM | ~7B-14B | ~98.0% | `16.23` | `61.12` | **`38.67`** | Multi-GPU |
 | 📌 **Ref** | **Baseline Oficial ICDAR** | Prompting Padrão | Qwen 3 VL 8B | ~8B | ~92.5% | `14.08` | `57.86` | **`35.97`** | ~16GB VRAM |
-| **4º** | **`Vassilis Sioros`** | Early Fusion + MoE + Context | Qwen3.5-9B MoE | ~9B | ~95.0% | `14.94` | `55.20` | **`35.07`** | 24GB+ VRAM |
-| **5º** | **`DocMiner`** | Multi-Agent Dynamic Routing | Multi-VLM | ~7B | ~94.2% | `12.67` | `53.72` | **`33.19`** | Multi-VLM RAG |
+| **6º** | **`Vassilis Sioros`** | Early Fusion + MoE + Context | Qwen3.5-9B MoE | ~9B | ~95.0% | `14.94` | `55.20` | **`35.07`** | 24GB+ VRAM |
+| **7º** | **`DocMiner`** | Multi-Agent Dynamic Routing | Multi-VLM | ~7B | ~94.2% | `12.67` | `53.72` | **`33.19`** | Multi-VLM RAG |
 | ⚠️ **Base** | **Modelo Base (Zero-Shot)** | Prompting Zero-Shot | Qwen2.5-VL-3B | ~3B | `88.74%` | `11.85` | `50.32` | **`31.08`** | < 8GB VRAM |
 
 ---
