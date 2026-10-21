@@ -171,6 +171,46 @@ distribuição de complexidade dos dados processados (45% `easy`, 40% `medium` e
 duplicadas. Para gerar somente um nível, use `--difficulty hard`. O gerador não
 substitui um diretório não vazio sem `--overwrite`.
 
+### Degradação do dataset original
+
+O script `augment_images.py` usa Albumentations para criar cópias degradadas
+das figuras reais de `data/processed`, preservando suas tabelas Markdown:
+
+```bash
+pip install -e .
+python augment_images.py --variants 3 --output-dir data/augmented
+```
+
+Todas as imagens dos splits `train`, `val` e `test` são processadas por padrão,
+sem seleção por dificuldade. Para processar somente o treino:
+
+```bash
+python augment_images.py --split train --variants 5 --severity mild
+```
+
+As transformações incluem rotação de até ±10° com expansão da imagem e borda
+branca para preservar eixos e legendas, variações de brilho/contraste, desfoque,
+ruído, perda de resolução e artefatos JPEG. Cada cópia recebe pelo menos uma
+degradação e é salva em PNG. Ajuste com `--rotation-limit`,
+`--severity mild|moderate|strong` e `--seed`. Degradações fortes podem prejudicar a leitura;
+inspecione algumas cópias antes de treinar.
+
+O padrão `--split all` processa cada split separadamente, sem redistribuir
+imagens entre treino, validação e teste. O diretório de saída
+contém apenas as novas imagens em `images/`, os respectivos arquivos JSONL no
+esquema `id/image/table` e um `manifest.json` com a origem, a seleção, a versão
+da biblioteca, os parâmetros e a semente de cada cópia. O script rejeita
+registros sintéticos ou já aumentados, diretórios de saída não vazios e qualquer
+sobreposição entre origem e saída. Os arquivos originais permanecem intactos.
+Para repetir uma execução, escolha outro diretório de saída; com a mesma semente,
+entradas e ambiente, as cópias são reproduzíveis.
+
+Para treinar com originais e cópias, crie um arquivo de treino combinado separado
+(os caminhos absolutos dos originais permitem carregar as duas origens):
+
+Use `data/augmented/train_combined.jsonl` em `data.train_file`, mantendo
+`data.val_file` e `data.test_file` apontando para os splits originais.
+
 ---
 
 ## 6. Dicionário de Hiperparâmetros Chave
