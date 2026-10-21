@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -56,7 +57,8 @@ def test_variants_keep_targets_and_sources_and_repeat_exactly(originals, tmp_pat
         assert (first / record["image"]).read_bytes() == (second / record["image"]).read_bytes()
         with Image.open(first / record["image"]) as image:
             assert image.mode == "RGB"
-            assert image.width >= 96 and image.height >= 64
+            # Per-axis stretch (floor 0.85) may shrink axes; fit_output never crops beyond that.
+            assert image.width >= 80 and image.height >= 54
         hashes.add(hashlib.sha256((first / record["image"]).read_bytes()).hexdigest())
     assert len(hashes) == 9
     assert before == {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in before}
@@ -134,3 +136,63 @@ def test_source_path_cannot_escape_to_other_datasets(originals, tmp_path):
     (originals / "train.jsonl").write_text("".join(json.dumps(r) + "\n" for r in records))
     with pytest.raises(ValueError, match="inside source_dir"):
         augment_dataset(originals, tmp_path / "output")
+
+
+def test_generated_names_carry_source_stem(originals, tmp_path):
+    output = tmp_path / "augmented"
+    manifest = augment_dataset(originals, output, split="all", variants=2, seed=1)
+    source_image = {e["id"]: e["source_image"] for e in manifest["images"]}
+    records = read_records(output / "train.jsonl") + read_records(output / "val.jsonl") + read_records(output / "test.jsonl")
+    assert len(records) == 18
+    for record in records:
+        stem = Path(source_image[record["id"]]).stem
+        assert Path(record["image"]).stem.startswith(stem)
+        assert (output / record["image"]).is_file()
+
+
+def test_duplicate_stems_receive_disambiguation_tag(tmp_path):
+    root = tmp_path / "original"
+    (root / "images" / "a").mkdir(parents=True)
+    (root / "images" / "b").mkdir(parents=True)
+    pixels = np.full((8, 8, 3), 200, dtype=np.uint8)
+    Image.fromarray(pixels).save(root / "images" / "a" / "figure.png")
+    Image.fromarray(pixels).save(root / "images" / "b" / "figure.png")
+    records = [
+        {"id": "case__first", "image": "images/a/figure.png", "table": "| 1 |"},
+        {"id": "case__second", "image": "images/b/figure.png", "table": "| 2 |"},
+    ]
+    (root / "train.jsonl").write_text("".join(json.dumps(r) + "\n" for r in records))
+    manifest = augment_dataset(root, tmp_path / "out", split="train", variants=1, seed=3)
+    records = read_records(tmp_path / "out" / "train.jsonl")
+    stems = [Path(record["image"]).stem for record in records]
+    assert len(set(stems)) == 2
+    assert all(stem.startswith("figure_d") for stem in stems)
+
+
+def test_diagnostic_mode_creates_isolated_sets(originals, tmp_path):
+    output = tmp_path / "diagnostic"
+    manifest = augment_dataset(originals, output, split="test", diagnostic=True, seed=5)
+    assert manifest["mode"] == "diagnostic"
+    expected_sets = {
+        "baseline", "rotate", "stretch", "grayscale", "hue_gamma", "perspective",
+        "shadow", "blur", "gauss_noise", "iso_noise", "downscale", "sharpen", "jpeg",
+    }
+    assert set(manifest["sets"]) == expected_sets
+    baseline = manifest["sets"]["baseline"]["images"]
+    assert len(baseline) == 3
+    assert all(entry["transforms"] == [] for entry in baseline)
+    blur_entry = manifest["sets"]["blur"]["images"][0]
+    assert blur_entry["transforms"] == ["GaussianBlur"]
+    stem_of = {e["id"]: Path(e["source_image"]).stem for e in manifest["sets"]["blur"]["images"]}
+    for record in read_records(output / "blur" / "test.jsonl"):
+        assert Path(record["image"]).stem.startswith(stem_of[record["id"]])
+    for entry in manifest["sets"]["grayscale"]["images"]:
+        record_file = (
+            output / "grayscale" / f"images/{Path(entry['source_image']).stem}__aug_001.png"
+        )
+        with Image.open(record_file) as image:
+            array = np.array(image)
+        red, green, blue = array[..., 0], array[..., 1], array[..., 2]
+        assert np.allclose(red, green, atol=2) and np.allclose(green, blue, atol=2)
+    for set_name in expected_sets:
+        assert len(read_records(output / set_name / "test.jsonl")) == 3

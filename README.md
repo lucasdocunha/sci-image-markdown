@@ -188,22 +188,48 @@ sem seleção por dificuldade. Para processar somente o treino:
 python augment_images.py --split train --variants 5 --severity mild
 ```
 
-As transformações incluem rotação de até ±10° com expansão da imagem e borda
-branca para preservar eixos e legendas, variações de brilho/contraste, desfoque,
-ruído, perda de resolução e artefatos JPEG. Cada cópia recebe pelo menos uma
-degradação e é salva em PNG. Ajuste com `--rotation-limit`,
-`--severity mild|moderate|strong` e `--seed`. Degradações fortes podem prejudicar a leitura;
-inspecione algumas cópias antes de treinar.
+As transformações, aplicadas em sequência em cada cópia, incluem rotação de até
+±10° com expansão da imagem e borda branca para preservar eixos e legendas,
+esticamento independente dos eixos (proporção distorcida), conversão para
+escala de cinza (só em severidades moderada e forte), deslocamentos de
+matiz/saturação/valor (HSV), gamma, variações de brilho/contraste, sombra,
+foto da página em ângulo (perspectiva), e pelo menos uma degradação local
+escolhida entre desfoque gaussiano, ruído gaussiano, ruído de sensor camera
+(ISO) e perda de resolução, fechando com artefatos JPEG e realce excessivo
+(sharpen) nas severidades suficientes. Cada cópia é salva em PNG. Ajuste com
+`--rotation-limit`, `--severity mild|moderate|strong` e `--seed`. Degradações
+fortes podem prejudicar a leitura; inspecione algumas cópias antes de treinar.
 
 O padrão `--split all` processa cada split separadamente, sem redistribuir
 imagens entre treino, validação e teste. O diretório de saída
-contém apenas as novas imagens em `images/`, os respectivos arquivos JSONL no
-esquema `id/image/table` e um `manifest.json` com a origem, a seleção, a versão
-da biblioteca, os parâmetros e a semente de cada cópia. O script rejeita
+contém apenas as novas imagens em `images/`, com nomes derivados do arquivo
+original (ex.: `<figura_original>__aug_001.png`) e os respectivos arquivos
+JSONL no esquema `id/image/table`, além de um `manifest.json` com a origem, a
+seleção, a versão da biblioteca, os parâmetros, a semente e a lista de
+transformações efetivamente aplicadas em cada cópia. O script rejeita
 registros sintéticos ou já aumentados, diretórios de saída não vazios e qualquer
 sobreposição entre origem e saída. Os arquivos originais permanecem intactos.
 Para repetir uma execução, escolha outro diretório de saída; com a mesma semente,
 entradas e ambiente, as cópias são reproduzíveis.
+
+### Diagnóstico por transformação
+
+O modo `--diagnostic` gera, para o split selecionado (idealmente `--split
+test`), um conjunto isolado por transformação — `baseline`, `rotate`,
+`stretch`, `grayscale`, `hue_gamma`, `perspective`, `shadow`, `blur`,
+`gauss_noise`, `iso_noise`, `downscale`, `sharpen` e `jpeg` — em que cada
+cópia recebe uma única transformação (ou nenhuma, no `baseline`), aplicada
+sempre com intensidades da severidade escolhida:
+
+```bash
+python augment_images.py --diagnostic --split test --severity strong \
+  --output-dir data/diagnostic
+```
+
+Cada conjunto fica em `<output-dir>/<transformação>/` com imagens, JSONLs e
+manifest próprio. Avalie o modelo em cada conjunto e compare com o baseline
+para identificar quais degradações mais derrubam as métricas.
+
 
 Para treinar com originais e cópias, crie um arquivo de treino combinado separado
 (os caminhos absolutos dos originais permitem carregar as duas origens):
