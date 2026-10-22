@@ -1,0 +1,74 @@
+# Training Configuration for Qwen2.5-VL-3B-Instruct over originals + augmented copies
+project_name: "sci-image-markdown"
+experiment_name: "qwen2_5_vl_3b_aug"
+seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  splits_dir: "data/splits"
+  train_file: "data/augmented/train_combined.jsonl"
+  val_file: "data/processed/val.jsonl"
+  test_file: "data/processed/test.jsonl"
+  image_folder: "data/raw/images"
+  max_image_resolution: 280
+  min_image_resolution: 128
+  min_pixels: 50176
+  max_pixels: 153664
+  max_table_chars: 1500
+  system_prompt: "You are an expert scientific figure analyzer. Your task is to extract the exact data points and values plotted in the given scientific figure panel and format them into a structured Markdown table with proper column headers."
+
+model:
+  name_or_path: "Qwen/Qwen2.5-VL-3B-Instruct"
+  model_type: "qwen2_5_vl"
+  trust_remote_code: true
+  torch_dtype: "float16"
+  attn_implementation: "sdpa"
+  use_cache: false
+
+training:
+  method: "qlora"
+  optim: "paged_adamw_8bit"
+  output_dir: "/media/ssd2/adryan.silva/outputs/qwen2_5_vl_3b_aug"
+  num_train_epochs: 3
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_steps: 20
+  weight_decay: 0.01
+  logging_steps: 10
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  save_total_limit: 2
+  load_best_model_at_end: false
+  bf16: false
+  fp16: true
+  dataloader_num_workers: 2
+  gradient_checkpointing: true
+  report_to: "none"
+
+peft:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+  target_modules:
+    - "q_proj"
+    - "v_proj"
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_use_double_quant: true
+
+evaluation:
+  batch_size: 1
+  max_new_tokens: 1024
+  temperature: 0.0
+  do_sample: false
+  numerical_relative_tolerance: 0.05
+  output_eval_dir: "outputs/eval_results/qwen2_5_vl_3b_aug"

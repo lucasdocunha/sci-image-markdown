@@ -1,0 +1,3 @@
+# Minimal override: resolve images for the original test split
+data:
+  image_folder: "data/processed/images"

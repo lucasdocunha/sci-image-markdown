@@ -1,0 +1,3 @@
+# Minimal override: resolve images for the augmented test split (degraded copies)
+data:
+  image_folder: "data/augmented/images"
