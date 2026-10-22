@@ -36,14 +36,16 @@ Comparação direta dos competidores do artigo oficial ([arXiv:2607.26848](https
 
 | Posição | Modelo / Equipe | Abordagem Principal | Backbone | Parâmetros | VTR (Tabelas Válidas) | RMS (Mapeamento Numérico) | TEDS (Similaridade Estrutural) | Score Final ICDAR $\frac{1}{2}(\text{RMS}+\text{TEDS})$ | Hardware / VRAM |
 | :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| 🥇 **1º** | **`sci-image-markdown (7B)`** | **QLoRA + ICDAR Metric Loss** | **Qwen2.5-VL-7B** | **~7B** | **`99.73%`** | **`60.26`** | **`43.96`** | **`52.11`** 🏆 | **~10 GB VRAM (GPU única)** |
-| 🥈 **2º** | **`sci-image-markdown (3B)`** | **QLoRA + ICDAR Metric Loss** | **Qwen2.5-VL-3B** | **~3B** | **`99.73%`** | **`58.30`** | **`40.68`** | **`49.49`** 🚀 | **< 8 GB VRAM (GPU única)** |
-| 🥉 **3º** | **`TeleOCR-VL`** | Ensemble Heterogêneo + Sintéticos | Multi-VLM | Multi | ~99.0% | `17.23` | **`66.39`** | **`41.81`** | Cluster Multi-GPU |
-| **4º** | **`VLMinators`** | QLoRA + Injeção de Contexto | Qwen2.5-VL-7B | ~7B | ~98.8% | `17.29` | `64.31` | **`40.80`** | 16GB-24GB VRAM |
-| **5º** | **`Ricoh_SRCB`** | Multi-Image Prompting + Crop | Multi-VLM | ~7B-14B | ~98.0% | `16.23` | `61.12` | **`38.67`** | Multi-GPU |
+| 🥇 **1º** | **`LightOnOCR-3-4B (Ours)`** | **QLoRA + Loss v3 (TEDS-Topology)** | **LightOnOCR-3-4B** | **~3.4B** | **`98.39%`** | **`62.12`** | **`42.52`** | **`52.32`** 🏆 | **~8 GB VRAM (GPU única)** |
+| 🥈 **2º** | **`sci-image-markdown (7B)`** | **QLoRA + Loss v2** | **Qwen2.5-VL-7B** | **~7B** | **`99.73%`** | **`60.26`** | **`43.96`** | **`52.11`** 🎯 | **~10 GB VRAM (GPU única)** |
+| 🥉 **3º** | **`sci-image-markdown (3B)`** | **QLoRA + Loss v1** | **Qwen2.5-VL-3B** | **~3B** | **`99.73%`** | **`58.30`** | **`40.68`** | **`49.49`** | **< 8 GB VRAM (GPU única)** |
+| **4º** | **`Qwen3-VL-8B (Ours)`** | **QLoRA + Loss v3 (TEDS-Topology)** | **Qwen3-VL-8B** | **~8B** | **`99.73%`** | **`60.76`** | **`36.68`** | **`48.72`** 🚀 | **~16 GB VRAM (GPU única)** |
+| **5º** | **`TeleOCR-VL`** | Ensemble Heterogêneo + Sintéticos | Multi-VLM | Multi | ~99.0% | `17.23` | **`66.39`** | **`41.81`** | Cluster Multi-GPU |
+| **6º** | **`VLMinators`** | QLoRA + Injeção de Contexto | Qwen2.5-VL-7B | ~7B | ~98.8% | `17.29` | `64.31` | **`40.80`** | 16GB-24GB VRAM |
+| **7º** | **`Ricoh_SRCB`** | Multi-Image Prompting + Crop | Multi-VLM | ~7B-14B | ~98.0% | `16.23` | `61.12` | **`38.67`** | Multi-GPU |
 | 📌 **Ref** | **Baseline Oficial ICDAR** | Prompting Padrão | Qwen 3 VL 8B | ~8B | ~92.5% | `14.08` | `57.86` | **`35.97`** | ~16GB VRAM |
-| **6º** | **`Vassilis Sioros`** | Early Fusion + MoE + Context | Qwen3.5-9B MoE | ~9B | ~95.0% | `14.94` | `55.20` | **`35.07`** | 24GB+ VRAM |
-| **7º** | **`DocMiner`** | Multi-Agent Dynamic Routing | Multi-VLM | ~7B | ~94.2% | `12.67` | `53.72` | **`33.19`** | Multi-VLM RAG |
+| **8º** | **`Vassilis Sioros`** | Early Fusion + MoE + Context | Qwen3.5-9B MoE | ~9B | ~95.0% | `14.94` | `55.20` | **`35.07`** | 24GB+ VRAM |
+| **9º** | **`DocMiner`** | Multi-Agent Dynamic Routing | Multi-VLM | ~7B | ~94.2% | `12.67` | `53.72` | **`33.19`** | Multi-VLM RAG |
 | ⚠️ **Base** | **Modelo Base (Zero-Shot)** | Prompting Zero-Shot | Qwen2.5-VL-3B | ~3B | `88.74%` | `11.85` | `50.32` | **`31.08`** | < 8GB VRAM |
 
 ---

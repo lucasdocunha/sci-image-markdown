@@ -2,6 +2,8 @@
 #SBATCH --job-name=sci-7b-v2
 #SBATCH --partition=dev
 #SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=28G
 #SBATCH --output=logs/slurm_7b_v2_%j.out
 #SBATCH --error=logs/slurm_7b_v2_%j.err
 #SBATCH --time=24:00:00

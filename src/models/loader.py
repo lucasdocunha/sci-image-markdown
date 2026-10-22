@@ -239,51 +239,78 @@ def _memory_efficient_qwen2_vl_forward(
                 elif token_weights.shape[0] > vocab_size:
                     token_weights = token_weights[:vocab_size]
 
-            sample_weights = token_weights[valid_labels] if token_weights is not None else None
+            sample_weights = token_weights[valid_labels] if token_weights is not None else torch.ones_like(valid_labels, dtype=torch.float32)
 
             focal_gamma = kwargs.get("focal_gamma", getattr(self, "focal_gamma", 0.0))
+            weighted_loss_module = kwargs.get("weighted_loss_module", getattr(self, "weighted_loss_module", None))
             num_items_in_batch = kwargs.get("num_items_in_batch", None)
             reduction = "sum" if num_items_in_batch is not None else "mean"
 
             chunk_size = 16
-            if valid_hidden.shape[0] > chunk_size:
-                losses = []
-                w_splits = sample_weights.split(chunk_size) if sample_weights is not None else [None] * ((valid_hidden.shape[0] + chunk_size - 1) // chunk_size)
-                for chunk_h, chunk_y, chunk_w in zip(valid_hidden.split(chunk_size), valid_labels.split(chunk_size), w_splits):
-                    chunk_logits = self.lm_head(chunk_h).float()
-                    ce = nn.functional.cross_entropy(chunk_logits, chunk_y, reduction="none")
-                    del chunk_logits
-                    if chunk_w is not None:
-                        ce = ce * chunk_w
-                    if focal_gamma > 0.0:
-                        pt = torch.exp(-ce.detach())
-                        focal_w = (1.0 - pt) ** focal_gamma
-                        ce = focal_w * ce
-                    losses.append(ce.sum())
-                total_loss = torch.stack(losses).sum()
-                if reduction == "mean":
-                    loss = total_loss / valid_hidden.shape[0]
-                else:
-                    if torch.is_tensor(num_items_in_batch):
-                        num_items_in_batch = num_items_in_batch.to(total_loss.device)
-                    loss = total_loss / (num_items_in_batch if num_items_in_batch is not None else valid_hidden.shape[0])
-            else:
-                valid_logits = self.lm_head(valid_hidden).float()
-                ce = nn.functional.cross_entropy(valid_logits, valid_labels, reduction="none")
-                del valid_logits
-                if sample_weights is not None:
-                    ce = ce * sample_weights
+            ce_chunks = []
+            pred_id_chunks = []
+            digit_logit_chunks = []
+            digit_ids = getattr(weighted_loss_module, "digit_ids", None) if weighted_loss_module is not None else None
+
+            for chunk_h, chunk_y in zip(valid_hidden.split(chunk_size), valid_labels.split(chunk_size)):
+                chunk_logits = self.lm_head(chunk_h).float()
+                with torch.no_grad():
+                    pred_id_chunks.append(chunk_logits.argmax(dim=-1))
+                ce_chunk = nn.functional.cross_entropy(chunk_logits, chunk_y, reduction="none")
                 if focal_gamma > 0.0:
-                    pt = torch.exp(-ce.detach())
-                    focal_w = (1.0 - pt) ** focal_gamma
-                    ce = focal_w * ce
-                if reduction == "mean":
-                    loss = ce.mean()
-                else:
-                    total_loss = ce.sum()
-                    if torch.is_tensor(num_items_in_batch):
-                        num_items_in_batch = num_items_in_batch.to(total_loss.device)
-                    loss = total_loss / (num_items_in_batch if num_items_in_batch is not None else valid_hidden.shape[0])
+                    pt = torch.exp(-ce_chunk.detach())
+                    ce_chunk = ((1.0 - pt) ** focal_gamma) * ce_chunk
+                ce_chunks.append(ce_chunk)
+                if digit_ids is not None and digit_ids.max().item() < chunk_logits.shape[-1]:
+                    digit_logit_chunks.append(chunk_logits[:, digit_ids.to(chunk_logits.device)])
+                del chunk_logits
+
+            all_ce = torch.cat(ce_chunks, dim=0)
+            all_pred_ids = torch.cat(pred_id_chunks, dim=0)
+
+            card_mult = 1.0
+            if weighted_loss_module is not None:
+                with torch.no_grad():
+                    dynamic_weights, card_mult, _ = weighted_loss_module.compute_dynamic_float_and_cardinality_weights(
+                        pred_token_ids=all_pred_ids,
+                        valid_labels=valid_labels,
+                        base_weights=sample_weights.float(),
+                    )
+                dynamic_weights = dynamic_weights.to(all_ce.device)
+            else:
+                dynamic_weights = sample_weights.to(all_ce.device).float()
+
+            weighted_ce = all_ce * dynamic_weights
+
+            # Optional differentiable soft-digit expected value term on compact 10-column digit logits
+            soft_digit_term = torch.tensor(0.0, device=all_ce.device)
+            if (
+                weighted_loss_module is not None
+                and digit_logit_chunks
+                and getattr(weighted_loss_module, "soft_digit_weight", 0.0) > 0.0
+            ):
+                all_digit_logits = torch.cat(digit_logit_chunks, dim=0)
+                lbl_clamped = valid_labels.clamp(0, weighted_loss_module.vocab_size - 1)
+                target_digit_vals = weighted_loss_module.digit_value_map.to(valid_labels.device)[lbl_clamped]
+                is_digit_pos = target_digit_vals >= 0.0
+                if is_digit_pos.any():
+                    d_probs = nn.functional.softmax(all_digit_logits[is_digit_pos], dim=-1)
+                    d_vals = weighted_loss_module.digit_vals.to(d_probs.device).unsqueeze(0)
+                    expected_d = torch.sum(d_probs * d_vals, dim=-1)
+                    d_diff = torch.abs(expected_d - target_digit_vals[is_digit_pos]) / 9.0
+                    soft_digit_term = (
+                        weighted_loss_module.soft_digit_weight
+                        * (d_diff * dynamic_weights[is_digit_pos]).mean()
+                    )
+
+            total_loss = weighted_ce.sum()
+            if reduction == "mean":
+                loss = (total_loss / valid_hidden.shape[0] + soft_digit_term) * card_mult
+            else:
+                if torch.is_tensor(num_items_in_batch):
+                    num_items_in_batch = num_items_in_batch.to(total_loss.device)
+                denom = num_items_in_batch if num_items_in_batch is not None else valid_hidden.shape[0]
+                loss = (total_loss / denom + soft_digit_term) * card_mult
         else:
             loss = torch.tensor(0.0, device=hidden_states.device, requires_grad=True)
     else:

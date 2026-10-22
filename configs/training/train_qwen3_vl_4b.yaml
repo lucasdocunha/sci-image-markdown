@@ -8,13 +8,17 @@ data:
   processed_dir: "data/processed"
   splits_dir: "data/splits"
   train_file: "data/processed/train.jsonl"
+  synthetic_train_file: "data/synthetic/train.jsonl"
+  synthetic_num_samples: 400
+  synthetic_sample_ratio: 0.02
+  double_table_aug_prob: 0.02
   val_file: "data/processed/val.jsonl"
   test_file: "data/processed/test.jsonl"
   image_folder: "data/processed"
   max_image_resolution: null
   min_pixels: 50176
   max_pixels: 200704
-  max_table_chars: 800
+  max_table_chars: 2500
   system_prompt: "You are an expert scientific figure analyzer. Your task is to extract all numerical data points and values plotted in the given scientific figure panel into a structured Markdown table with accurate column headers. Follow these strict guidelines: 1. Peak-Picking: For continuous spectroscopy plots (e.g. RBS, Raman, XRD, XPS, FTIR), locate and extract the precise coordinates and labels of physical peaks and extrema rather than regular grid intervals. 2. Multi-Panel Figures: If the figure contains multiple subplots (panels a, b, c), extract a separate Markdown table for EACH panel. Do not stop early. 3. Pure Numeric Values: Output clean numerical values without approximation symbols (never use '~', 'approx'). 4. Avoid Dummy Progressions: Never output artificial linear progression sequences."
 
 model:
@@ -50,8 +54,15 @@ training:
   metric_loss:
     lambda_metric: 0.3
     rel_tol: 0.05
+    near_tol: 0.01
+    min_near_weight: 0.12
     numeric_weight: 4.0
     structural_weight: 3.0
+    header_weight: 4.5
+    count_penalty_weight: 1.5
+    table_count_penalty_weight: 2.0
+    col_count_penalty_weight: 2.0
+    soft_digit_weight: 0.25
     reward_mode: "gpu_tensor"
 
 peft:

@@ -3,7 +3,7 @@
 #SBATCH --partition=dev
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=30G
+#SBATCH --mem=28G
 #SBATCH --output=logs/slurm_train_qwen3_8b_%j.out
 #SBATCH --error=logs/slurm_train_qwen3_8b_%j.err
 #SBATCH --time=24:00:00
@@ -13,6 +13,7 @@ cd /home/lucas.ocunha/sci-image-markdown
 
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
 export PYTHONUNBUFFERED=1
+export HF_HOME=/media/ssd2/lucas.ocunha/.cache/huggingface
 export PYTHONPATH=.
 
 mkdir -p /media/ssd2/datasets/sci-image-markdown-data/outputs/qwen3_vl_8b_icdar_loss

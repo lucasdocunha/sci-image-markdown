@@ -4,7 +4,11 @@ data:
   max_image_resolution: 256
   min_pixels: 50176   # 64 * 28 * 28 (~224x224)
   max_pixels: 100352  # 128 * 28 * 28 (~316x316, optimal for 6GB VRAM)
-  max_table_chars: 900
+  max_table_chars: 2500
+  synthetic_train_file: "data/synthetic/train.jsonl"
+  synthetic_num_samples: 400
+  synthetic_sample_ratio: 0.02
+  double_table_aug_prob: 0.02
 
 training:
   method: "qlora"
@@ -18,9 +22,16 @@ training:
   metric_loss:
     lambda_metric: 0.3        # Weight given to the ICDAR metric loss (0.0 to 1.0)
     rel_tol: 0.05             # Relative numerical error tolerance for RMS (5%)
+    near_tol: 0.01            # <= 1% relative float error barely penalized
+    min_near_weight: 0.12     # Minimum weight when within 1% relative error
     temperature: 0.7          # Sampling temperature for exploration in SCST
     max_gen_tokens: 300       # Maximum generation tokens during SCST training
-    numeric_weight: 3.0       # Weight for numerical tokens in token-weighted mode (RMS proxy)
-    structural_weight: 2.0    # Weight for table structural tokens (| and ---) (TEDS proxy)
-    reward_mode: "gpu_tensor" # 'gpu_tensor' (100% in-VRAM fast tensor reward) or 'cpu_exact' (Zhang-Shasha tree on CPU)
-    focal_gamma: 0.0          # Optional focal loss exponent on GPU (0.0 for standard weighted CE, >0 to focus on hard tokens)
+    numeric_weight: 4.0       # Max weight for numerical tokens when error is large
+    structural_weight: 3.0    # Weight for table structural tokens (| and ---) (TEDS proxy)
+    header_weight: 4.5        # Weight for first 2 lines of each table (header + separator)
+    count_penalty_weight: 1.5 # Penalty multiplier weight for point/row count mismatch
+    table_count_penalty_weight: 2.0 # Extra penalty weight for table count mismatch
+    col_count_penalty_weight: 2.0   # Extra penalty weight for column count mismatch
+    soft_digit_weight: 0.25   # Differentiable expected-digit loss weight
+    reward_mode: "gpu_tensor" # 'gpu_tensor' or 'cpu_exact'
+    focal_gamma: 0.0          # Optional focal loss exponent on GPU

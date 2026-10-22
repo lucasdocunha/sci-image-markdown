@@ -170,6 +170,52 @@ def test_gpu_tensor_reward_module():
     assert reward_div.item() < reward.item()
 
 
+def test_float_proximity_weight_curve():
+    from src.training.icdar_loss import compute_float_proximity_weight
+
+    # <= 1% error -> almost zero penalty (<= min_near_weight)
+    w_exact, err_exact = compute_float_proximity_weight(100.0, 100.0, near_tol=0.01, rel_tol=0.05, min_near_weight=0.05, max_numeric_weight=4.0)
+    w_1pct, err_1pct = compute_float_proximity_weight(99.2, 100.0, near_tol=0.01, rel_tol=0.05, min_near_weight=0.05, max_numeric_weight=4.0)
+    w_3pct, err_3pct = compute_float_proximity_weight(97.0, 100.0, near_tol=0.01, rel_tol=0.05, min_near_weight=0.05, max_numeric_weight=4.0)
+    w_20pct, err_20pct = compute_float_proximity_weight(80.0, 100.0, near_tol=0.01, rel_tol=0.05, min_near_weight=0.05, max_numeric_weight=4.0)
+    w_none, _ = compute_float_proximity_weight(None, 100.0, near_tol=0.01, rel_tol=0.05, min_near_weight=0.05, max_numeric_weight=4.0)
+
+    assert w_exact <= w_1pct <= 0.05 + 1e-6
+    assert w_1pct < w_3pct < 1.0
+    assert 1.0 < w_20pct <= 4.0
+    assert w_none == 4.0
+
+
+def test_cardinality_penalty_points_and_tables():
+    from src.training.icdar_loss import compute_cardinality_penalty
+
+    # Same number of points and tables -> multiplier == 1.0
+    mult_eq, _ = compute_cardinality_penalty(
+        num_pred_points=10, num_target_points=10, num_pred_rows=5, num_target_rows=5, num_pred_tables=2, num_target_tables=2
+    )
+    assert abs(mult_eq - 1.0) < 1e-6
+
+    # Missing half the points -> multiplier > 1.0
+    mult_pts, _ = compute_cardinality_penalty(
+        num_pred_points=5, num_target_points=10, num_pred_rows=5, num_target_rows=5, num_pred_tables=1, num_target_tables=1
+    )
+    assert mult_pts > 1.5
+
+    # Missing second table -> even higher multiplier
+    mult_tbl, _ = compute_cardinality_penalty(
+        num_pred_points=5, num_target_points=10, num_pred_rows=3, num_target_rows=6, num_pred_tables=1, num_target_tables=2
+    )
+    assert mult_tbl > mult_pts
+
+    # Column count mismatch -> penalizes structural column divergence
+    mult_cols, stats_cols = compute_cardinality_penalty(
+        num_pred_points=10, num_target_points=10, num_pred_rows=5, num_target_rows=5,
+        num_pred_tables=1, num_target_tables=1, num_pred_cols=2, num_target_cols=4
+    )
+    assert mult_cols > 1.0
+    assert abs(stats_cols["col_rel_diff"] - 0.5) < 1e-6
+
+
 def test_token_weighted_loss_with_focal_gamma():
     tokenizer = DummyTokenizer()
     loss_module = ICDARTokenWeightedLoss(tokenizer, numeric_weight=3.0, structural_weight=2.0, focal_gamma=1.5)
