@@ -160,23 +160,25 @@ class SciImageTableTrainer:
                 lambda_metric=m_cfg.get("lambda_metric", 0.3),
                 rel_tol=m_cfg.get("rel_tol", 0.05),
                 near_tol=m_cfg.get("near_tol", 0.01),
-                min_near_weight=m_cfg.get("min_near_weight", 0.12),
+                min_near_weight=m_cfg.get("min_near_weight", 0.20),
                 temperature=m_cfg.get("temperature", 0.7),
                 max_gen_tokens=m_cfg.get("max_gen_tokens", 512),
                 numeric_weight=m_cfg.get("numeric_weight", 4.0),
-                structural_weight=m_cfg.get("structural_weight", 3.0),
-                header_weight=m_cfg.get("header_weight", 4.5),
-                count_penalty_weight=m_cfg.get("count_penalty_weight", 1.5),
-                table_count_penalty_weight=m_cfg.get("table_count_penalty_weight", 2.0),
-                col_count_penalty_weight=m_cfg.get("col_count_penalty_weight", 2.0),
+                structural_weight=m_cfg.get("structural_weight", 4.5),
+                header_weight=m_cfg.get("header_weight", 6.0),
+                text_weight=m_cfg.get("text_weight", 2.5),
+                count_penalty_weight=m_cfg.get("count_penalty_weight", 2.0),
+                table_count_penalty_weight=m_cfg.get("table_count_penalty_weight", 3.5),
+                col_count_penalty_weight=m_cfg.get("col_count_penalty_weight", 3.5),
                 soft_digit_weight=m_cfg.get("soft_digit_weight", 0.25),
                 reward_mode=reward_mode,
                 focal_gamma=focal_gamma,
                 vocab_size=vocab_sz,
             )
             logger.info(
-                f"Initialized ICDARMetricLoss (type={actual_type}, near_tol={m_cfg.get('near_tol', 0.01)}, "
-                f"rel_tol={m_cfg.get('rel_tol', 0.05)}, count_penalty={m_cfg.get('count_penalty_weight', 1.5)})"
+                f"Initialized ICDARMetricLoss (type={actual_type}, text_w={m_cfg.get('text_weight', 2.5)}, "
+                f"struct_w={m_cfg.get('structural_weight', 4.5)}, header_w={m_cfg.get('header_weight', 6.0)}, "
+                f"col_penalty={m_cfg.get('col_count_penalty_weight', 3.5)})"
             )
             if hasattr(self.icdar_loss_module, "weighted_module") and self.icdar_loss_module.weighted_module is not None:
                 w_mod = self.icdar_loss_module.weighted_module

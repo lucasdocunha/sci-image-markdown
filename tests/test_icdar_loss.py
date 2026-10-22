@@ -121,6 +121,29 @@ def test_scst_loss_forward_and_backward():
             assert not torch.isnan(param.grad).any()
 
 
+def test_text_and_table_structural_weights():
+    tokenizer = DummyTokenizer()
+    loss_module = ICDARTokenWeightedLoss(
+        tokenizer,
+        numeric_weight=4.0,
+        structural_weight=4.5,
+        header_weight=6.0,
+        text_weight=2.5,
+        vocab_size=len(tokenizer),
+    )
+    weights = loss_module.weights
+
+    # Textual tokens A, B should have text_weight (2.5)
+    assert weights[tokenizer.vocab["A"]].item() == 2.5
+    assert weights[tokenizer.vocab["B"]].item() == 2.5
+
+    # Structural tokens |, -, \n should have structural_weight (4.5)
+    assert weights[tokenizer.vocab["|"]].item() == 4.5
+    assert weights[tokenizer.vocab["-"]].item() == 4.5
+    assert weights[tokenizer.vocab["\n"]].item() == 4.5
+
+
+
 def test_icdar_metric_loss_hybrid():
     processor = DummyProcessor()
     metric_loss = ICDARMetricLoss(
@@ -254,4 +277,27 @@ def test_scst_loss_gpu_tensor_reward():
     for param in model.parameters():
         if param.grad is not None:
             assert not torch.isnan(param.grad).any()
+
+
+def test_text_and_table_structural_weights():
+    tokenizer = DummyTokenizer()
+    loss_module = ICDARTokenWeightedLoss(
+        tokenizer,
+        numeric_weight=4.0,
+        structural_weight=4.5,
+        header_weight=6.0,
+        text_weight=2.5,
+        vocab_size=len(tokenizer),
+    )
+    weights = loss_module.weights
+
+    # Textual tokens A, B should have text_weight (2.5)
+    assert weights[tokenizer.vocab["A"]].item() == 2.5
+    assert weights[tokenizer.vocab["B"]].item() == 2.5
+
+    # Structural tokens |, -, \n should have structural_weight (4.5)
+    assert weights[tokenizer.vocab["|"]].item() == 4.5
+    assert weights[tokenizer.vocab["-"]].item() == 4.5
+    assert weights[tokenizer.vocab["\n"]].item() == 4.5
+
 

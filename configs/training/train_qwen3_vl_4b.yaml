@@ -55,13 +55,14 @@ training:
     lambda_metric: 0.3
     rel_tol: 0.05
     near_tol: 0.01
-    min_near_weight: 0.12
+    min_near_weight: 0.20
     numeric_weight: 4.0
-    structural_weight: 3.0
-    header_weight: 4.5
-    count_penalty_weight: 1.5
-    table_count_penalty_weight: 2.0
-    col_count_penalty_weight: 2.0
+    text_weight: 2.5
+    structural_weight: 4.5
+    header_weight: 6.0
+    count_penalty_weight: 2.0
+    table_count_penalty_weight: 3.5
+    col_count_penalty_weight: 3.5
     soft_digit_weight: 0.25
     reward_mode: "gpu_tensor"
 

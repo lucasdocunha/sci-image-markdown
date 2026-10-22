@@ -23,15 +23,16 @@ training:
     lambda_metric: 0.3        # Weight given to the ICDAR metric loss (0.0 to 1.0)
     rel_tol: 0.05             # Relative numerical error tolerance for RMS (5%)
     near_tol: 0.01            # <= 1% relative float error barely penalized
-    min_near_weight: 0.12     # Minimum weight when within 1% relative error
+    min_near_weight: 0.20     # Minimum weight when within 1% relative error (preserves string format)
     temperature: 0.7          # Sampling temperature for exploration in SCST
     max_gen_tokens: 300       # Maximum generation tokens during SCST training
     numeric_weight: 4.0       # Max weight for numerical tokens when error is large
-    structural_weight: 3.0    # Weight for table structural tokens (| and ---) (TEDS proxy)
-    header_weight: 4.5        # Weight for first 2 lines of each table (header + separator)
-    count_penalty_weight: 1.5 # Penalty multiplier weight for point/row count mismatch
-    table_count_penalty_weight: 2.0 # Extra penalty weight for table count mismatch
-    col_count_penalty_weight: 2.0   # Extra penalty weight for column count mismatch
+    text_weight: 2.5          # Weight for textual tokens in cells and labels (boosts TEDS string matching)
+    structural_weight: 4.5    # Weight for table structural tokens (| and ---) (TEDS proxy)
+    header_weight: 6.0        # Weight for first 2 lines of each table (header + separator)
+    count_penalty_weight: 2.0 # Penalty multiplier weight for point/row count mismatch
+    table_count_penalty_weight: 3.5 # Extra penalty weight for table count mismatch (anti-omission)
+    col_count_penalty_weight: 3.5   # Extra penalty weight for column count mismatch
     soft_digit_weight: 0.25   # Differentiable expected-digit loss weight
     reward_mode: "gpu_tensor" # 'gpu_tensor' or 'cpu_exact'
     focal_gamma: 0.0          # Optional focal loss exponent on GPU

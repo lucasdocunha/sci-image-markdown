@@ -124,9 +124,9 @@ def compute_cardinality_penalty(
     num_target_tables: int = 1,
     num_pred_cols: int = 0,
     num_target_cols: int = 0,
-    count_penalty_weight: float = 1.5,
-    table_count_penalty_weight: float = 2.0,
-    col_count_penalty_weight: float = 2.0,
+    count_penalty_weight: float = 2.0,
+    table_count_penalty_weight: float = 3.5,
+    col_count_penalty_weight: float = 3.5,
 ) -> Tuple[float, Dict[str, float]]:
     """Computes a penalty multiplier when predicted point/row/table/column counts differ from ground truth.
 
@@ -155,8 +155,8 @@ def compute_cardinality_penalty(
 
     combined_point_diff = max(point_rel_diff, row_rel_diff)
     penalty_points = count_penalty_weight * min(2.0, combined_point_diff)
-    penalty_tables = table_count_penalty_weight * min(2.0, table_rel_diff)
-    penalty_cols = col_count_penalty_weight * min(2.0, col_rel_diff)
+    penalty_tables = table_count_penalty_weight * min(2.5, table_rel_diff)
+    penalty_cols = col_count_penalty_weight * min(2.5, col_rel_diff)
     multiplier = 1.0 + penalty_points + penalty_tables + penalty_cols
 
     return float(multiplier), {
@@ -340,16 +340,17 @@ class ICDARTokenWeightedLoss(nn.Module):
         self,
         tokenizer: Any,
         numeric_weight: float = 4.0,
-        structural_weight: float = 3.0,
-        header_weight: float = 4.5,
+        structural_weight: float = 4.5,
+        header_weight: float = 6.0,
+        text_weight: float = 2.5,
         vocab_size: Optional[int] = None,
         focal_gamma: float = 0.0,
         near_tol: float = 0.01,
         rel_tol: float = 0.05,
-        min_near_weight: float = 0.12,
-        count_penalty_weight: float = 1.5,
-        table_count_penalty_weight: float = 2.0,
-        col_count_penalty_weight: float = 2.0,
+        min_near_weight: float = 0.20,
+        count_penalty_weight: float = 2.0,
+        table_count_penalty_weight: float = 3.5,
+        col_count_penalty_weight: float = 3.5,
         soft_digit_weight: float = 0.25,
     ):
         super().__init__()
@@ -357,6 +358,7 @@ class ICDARTokenWeightedLoss(nn.Module):
         self.numeric_weight = float(numeric_weight)
         self.structural_weight = float(structural_weight)
         self.header_weight = float(header_weight)
+        self.text_weight = float(text_weight)
         self.focal_gamma = float(focal_gamma)
         self.near_tol = float(near_tol)
         self.rel_tol = float(rel_tol)
@@ -376,6 +378,7 @@ class ICDARTokenWeightedLoss(nn.Module):
         weights = torch.ones(self.vocab_size, dtype=torch.float32)
         is_numeric_tok = torch.zeros(self.vocab_size, dtype=torch.bool)
         is_structural_tok = torch.zeros(self.vocab_size, dtype=torch.bool)
+        is_text_tok = torch.zeros(self.vocab_size, dtype=torch.bool)
         is_newline_tok = torch.zeros(self.vocab_size, dtype=torch.bool)
         is_eos_tok = torch.zeros(self.vocab_size, dtype=torch.bool)
         is_newline_or_eos = torch.zeros(self.vocab_size, dtype=torch.bool)
@@ -415,6 +418,9 @@ class ICDARTokenWeightedLoss(nn.Module):
                     if d_val not in digit_token_vals:
                         digit_token_ids.append(idx)
                         digit_token_vals.append(d_val)
+            elif any(c.isalpha() for c in clean):
+                weights[idx] = self.text_weight
+                is_text_tok[idx] = True
 
         eos_id = getattr(self.tokenizer, "eos_token_id", None)
         if eos_id is not None and 0 <= eos_id < self.vocab_size:
@@ -425,6 +431,7 @@ class ICDARTokenWeightedLoss(nn.Module):
         self.register_buffer("token_weights", weights)
         self.register_buffer("is_numeric_tok", is_numeric_tok)
         self.register_buffer("is_structural_tok", is_structural_tok)
+        self.register_buffer("is_text_tok", is_text_tok)
         self.register_buffer("is_newline_tok", is_newline_tok)
         self.register_buffer("is_eos_tok", is_eos_tok)
         self.register_buffer("is_newline_or_eos", is_newline_or_eos)
@@ -469,13 +476,14 @@ class ICDARTokenWeightedLoss(nn.Module):
         lbl_list = valid_labels.detach().cpu().tolist()
         pred_list = pred_token_ids.detach().cpu().tolist()
         num_mask = self.is_numeric_tok[lbl_clamped].detach().cpu().tolist()
+        text_mask_cpu = self.is_text_tok[lbl_clamped].detach().cpu().tolist()
         nl_mask_cpu = self.is_newline_tok[lbl_clamped].detach().cpu().tolist()
         struct_mask_cpu = self.is_structural_tok[lbl_clamped].detach().cpu().tolist()
 
         # Boost tokens in the first 2 lines of each table (Header row + Separator row) for TEDS topology
         line_idx_in_table = 0
         consecutive_nl = 0
-        header_text_weight = max(1.0, self.header_weight * 0.6)
+        header_text_weight = max(self.text_weight, self.header_weight * 0.9)
         for idx_t in range(len(lbl_list)):
             if nl_mask_cpu[idx_t]:
                 tok_str = self.tokenizer.decode([lbl_list[idx_t]], skip_special_tokens=True) if hasattr(self.tokenizer, "decode") else "\n"
@@ -494,6 +502,11 @@ class ICDARTokenWeightedLoss(nn.Module):
                     target_w = self.header_weight if struct_mask_cpu[idx_t] else header_text_weight
                     if dynamic_weights[idx_t].item() < target_w:
                         dynamic_weights[idx_t] = target_w
+                else:
+                    # In data rows: ensure textual tokens (units, category labels, chemical descriptors) receive text_weight
+                    if text_mask_cpu[idx_t]:
+                        if dynamic_weights[idx_t].item() < self.text_weight:
+                            dynamic_weights[idx_t] = self.text_weight
 
         n_tokens = len(lbl_list)
         rel_errors: List[float] = []
@@ -557,13 +570,15 @@ class ICDARTokenWeightedLoss(nn.Module):
                 eos_mask = self.is_eos_tok[lbl_clamped].to(device)
                 dynamic_weights = torch.where(eos_mask, dynamic_weights * (card_mult * 1.5), dynamic_weights)
             if pred_rows < targ_rows or pred_tables < targ_tables:
-                # Under-generation / early stopping: boost newline tokens to continue rows/tables
+                # Under-generation / early stopping: strongly boost newline and structural tokens to continue rows/tables
                 nl_mask = self.is_newline_tok[lbl_clamped].to(device)
-                dynamic_weights = torch.where(nl_mask, dynamic_weights * card_mult, dynamic_weights)
-            if pred_cols != targ_cols:
-                # Column count mismatch: reinforce all structural pipe/separator tokens
+                dynamic_weights = torch.where(nl_mask, dynamic_weights * (card_mult * 1.5), dynamic_weights)
                 struct_mask = self.is_structural_tok[lbl_clamped].to(device)
-                col_boost = 1.0 + min(1.5, card_stats.get("col_rel_diff", 0.0))
+                dynamic_weights = torch.where(struct_mask, dynamic_weights * 1.3, dynamic_weights)
+            if pred_cols != targ_cols:
+                # Column count mismatch: reinforce all structural pipe/separator tokens and headers
+                struct_mask = self.is_structural_tok[lbl_clamped].to(device)
+                col_boost = 1.0 + min(2.0, card_stats.get("col_rel_diff", 0.0) * 1.5)
                 dynamic_weights = torch.where(struct_mask, dynamic_weights * col_boost, dynamic_weights)
 
         stats = {
@@ -847,15 +862,16 @@ class ICDARMetricLoss(nn.Module):
         lambda_metric: float = 0.3,
         rel_tol: float = 0.05,
         near_tol: float = 0.01,
-        min_near_weight: float = 0.12,
+        min_near_weight: float = 0.20,
         temperature: float = 0.7,
         max_gen_tokens: int = 512,
         numeric_weight: float = 4.0,
-        structural_weight: float = 3.0,
-        header_weight: float = 4.5,
-        count_penalty_weight: float = 1.5,
-        table_count_penalty_weight: float = 2.0,
-        col_count_penalty_weight: float = 2.0,
+        structural_weight: float = 4.5,
+        header_weight: float = 6.0,
+        text_weight: float = 2.5,
+        count_penalty_weight: float = 2.0,
+        table_count_penalty_weight: float = 3.5,
+        col_count_penalty_weight: float = 3.5,
         soft_digit_weight: float = 0.25,
         reward_mode: str = "gpu_tensor",
         focal_gamma: float = 0.0,
@@ -886,6 +902,7 @@ class ICDARMetricLoss(nn.Module):
                 numeric_weight=numeric_weight,
                 structural_weight=structural_weight,
                 header_weight=header_weight,
+                text_weight=text_weight,
                 vocab_size=vocab_size,
                 focal_gamma=focal_gamma,
                 near_tol=near_tol,
