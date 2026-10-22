@@ -13,7 +13,7 @@
 **Framework de Pesquisa e Engenharia para Extração de Tabelas Numéricas a partir de Figuras Científicas em Markdown Estruturado.**  
 *Avaliado no benchmark oficial ICDAR 2026 / Sci-ImageMiner (Task 2: Scientific Figure to Data Table Extraction).*
 
-[📘 Detalhamento Técnico Completo](docs/detalhamento.md) • [📊 Resultados de Benchmark](docs/BENCHMARK_RESULTS.md) • [📓 Caderno Interativo (Jupyter)](detalhamento.ipynb) • [🌐 Modelo de Domínio](docs/CONTEXT.md)
+[📘 Detalhamento Técnico Completo](docs/detalhamento.md) • [📊 Resultados de Benchmark](docs/BENCHMARK_RESULTS.md) • [📐 Formatos Long vs. Wide](docs/FORMATOS_TABELA_LONG_VS_WIDE.md) • [📓 Caderno Interativo (Jupyter)](detalhamento.ipynb) • [🌐 Modelo de Domínio](docs/CONTEXT.md)
 
 </div>
 
@@ -300,6 +300,8 @@ sci-image-markdown/
 ├── docs/                      # Central de documentação
 │   ├── detalhamento.md        # Dissecação técnica profunda (loss, QLoRA, arquitetura)
 │   ├── BENCHMARK_RESULTS.md   # Relatório oficial de benchmark e SOTA
+│   ├── FORMATOS_TABELA_LONG_VS_WIDE.md # Estudo comparativo de formatos Largo (Wide) vs Longo (Tidy)
+│   ├── DIAGNOSTICO_ERROS_7B.md # Diagnóstico empírico dos modos de falha do benchmark
 │   ├── CONTEXT.md             # Glossário e contexto físico-químico ALD/ALE
 │   ├── AGENTS.md              # Workflows de agentes autônomos
 │   ├── adr/                   # Architecture Decision Records
