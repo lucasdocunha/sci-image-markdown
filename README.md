@@ -295,6 +295,20 @@ Avaliação executada sobre as **373 figuras de teste independentes** do benchma
 
 ## 9. Guia de Início Rápido
 
+> **⚠️ Compatibilidade CUDA do venv (cluster sicret2):** o driver do nó aceita até CUDA 12.2 — um
+> torch compilado para CUDA 13 (`+cu130`) **não inicializa a GPU** e o treino cai **silenciosamente
+> na CPU** (barra `0/1086`, `pcpu ~100%`, sem erro). Após criar o venv, instale sempre um wheel
+> ≤ CUDA 12.6 e o pacote `kernels` requerido pelo bitsandbytes:
+>
+> ```bash
+> .venv/bin/pip install "torch==2.14.1+cu126" --index-url https://download.pytorch.org/whl/cu126
+> .venv/bin/pip install "kernels>=0.11.1"
+> .venv/bin/python -c "import torch; print(torch.cuda.is_available())"   # DEVE imprimir True
+> ```
+>
+> Desconfie do treino se a barra do tqdm ficar >10 min no primeiro passo — cheque
+> `nvidia-smi` (ou `ls /proc/<PID>/fd | grep nvidia`) antes de esperar horas.
+
 ### 1. Instalação
 
 ```bash
