@@ -30,11 +30,16 @@ def main(config: str, model_config: str, training_config: str):
     # Load datasets
     data_cfg = cfg.get("data", {})
     max_res = data_cfg.get("max_image_resolution", 280)
+    # On-the-fly augmentation applies only to training; val/test are never degraded.
+    augment_cfg = data_cfg.get("augment", {}) or {}
     train_dataset = SciImageTableDataset(
         data_path=data_cfg.get("train_file", "data/processed/train.jsonl"),
         image_dir=data_cfg.get("image_folder"),
         system_prompt=data_cfg.get("system_prompt"),
         max_image_resolution=max_res,
+        augment=bool(augment_cfg.get("enabled", False)),
+        rotation_limit=float(augment_cfg.get("rotation_limit", 10.0)),
+        severity=str(augment_cfg.get("severity", "moderate")),
     )
     logger.info(f"Loaded {len(train_dataset)} training samples.")
 

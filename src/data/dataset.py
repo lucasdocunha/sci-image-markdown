@@ -5,6 +5,7 @@ Dataset class for Sci-Image scientific figure to markdown table task.
 import os
 from typing import Any, Dict, List, Optional
 from PIL import Image
+import numpy as np
 import torch
 from torch.utils.data import Dataset
 
@@ -12,7 +13,13 @@ from ..utils.io import read_jsonl
 
 
 class SciImageTableDataset(Dataset):
-    """PyTorch Dataset for scientific figure panels and markdown table targets."""
+    """PyTorch Dataset for scientific figure panels and markdown table targets.
+
+    When ``augment`` is enabled, the image degradation pipeline (rotation,
+    blur, noise, JPEG compression, ...) is applied on the fly at every access,
+    so the training loop sees a fresh degradation of the same original each
+    epoch. Validation/test datasets must pass ``augment=False``.
+    """
 
     def __init__(
         self,
@@ -20,12 +27,25 @@ class SciImageTableDataset(Dataset):
         image_dir: Optional[str] = None,
         system_prompt: str = "Extract the plotted data from this figure into a clean Markdown table.",
         max_image_resolution: Optional[int] = None,
+        augment: bool = False,
+        rotation_limit: float = 10.0,
+        severity: str = "moderate",
         **kwargs: Any,
     ):
         self.data_path = data_path
         self.image_dir = image_dir
         self.system_prompt = system_prompt
         self.max_image_resolution = max_image_resolution
+
+        if severity not in ("mild", "moderate", "strong"):
+            raise ValueError(f"severity must be mild, moderate, or strong: {severity}")
+
+        self.pipeline = None
+        if augment:
+            # Deferred import keeps albumentations/cv2 out of the eval path.
+            from .augment_images_online import build_pipeline
+
+            self.pipeline = build_pipeline(rotation_limit, severity)
 
         if not os.path.exists(data_path):
             raise FileNotFoundError(f"Dataset file not found: {data_path}")
@@ -64,6 +84,9 @@ class SciImageTableDataset(Dataset):
 
         image_path = self._resolve_image_path(item["image"])
         image = Image.open(image_path).convert("RGB")
+        if self.pipeline is not None:
+            degraded = self.pipeline(image=np.array(image))
+            image = Image.fromarray(degraded["image"])
         if self.max_image_resolution:
             image.thumbnail((self.max_image_resolution, self.max_image_resolution))
 
