@@ -69,6 +69,7 @@ def _render_chart(
     annotation: str | None = None,
     plot_kind: str = "line",
     x_tick_labels: Sequence[str] | None = None,
+    font_scale: float = 1.0,
 ) -> Image.Image:
     """Render a compact chart using conventions common in journal figures."""
     width, height = rng.choice(FIGURE_SIZES)
@@ -147,11 +148,11 @@ def _render_chart(
                     label=name,
                 )
 
-        axis.set_xlabel(x_label, fontsize=11)
-        axis.set_ylabel(y_label, fontsize=11)
+        axis.set_xlabel(x_label, fontsize=11 * font_scale)
+        axis.set_ylabel(y_label, fontsize=11 * font_scale)
         if x_tick_labels is not None:
             axis.set_xticks(x_values, x_tick_labels, rotation=18)
-        axis.tick_params(which="both", direction="in", top=True, right=True, labelsize=9)
+        axis.tick_params(which="both", direction="in", top=True, right=True, labelsize=9 * font_scale)
         axis.minorticks_on()
         for spine in axis.spines.values():
             spine.set_color("#202020")
@@ -161,7 +162,13 @@ def _render_chart(
         if log_y:
             axis.set_yscale("log")
         if len(series) > 1:
-            axis.legend(frameon=False, fontsize=8, loc="best", handlelength=2.2)
+            axis.legend(
+                frameon=False,
+                fontsize=8 * font_scale,
+                loc="best",
+                handlelength=2.2,
+                ncol=2 if font_scale > 1 and len(series) > 3 else 1,
+            )
         if panels:
             axis.text(
                 0.02,
@@ -183,13 +190,17 @@ def _render_chart(
             )
         axis.margins(x=0.06, y=0.12)
 
-    figure.subplots_adjust(
-        left=0.14 if not panels else 0.09,
-        right=0.97,
-        bottom=0.16,
-        top=0.96,
-        wspace=0.34 if panels else 0.2,
-    )
+    if font_scale > 1:
+        # Fixed margins clip enlarged tick and axis labels.
+        figure.tight_layout(pad=0.6)
+    else:
+        figure.subplots_adjust(
+            left=0.14 if not panels else 0.09,
+            right=0.97,
+            bottom=0.16,
+            top=0.96,
+            wspace=0.34 if panels else 0.2,
+        )
     return _figure_to_image(figure, dpi)
 
 
@@ -1271,6 +1282,7 @@ def _multi_series(rng: random.Random) -> tuple[Image.Image, str]:
         x_label,
         y_label,
         plot_kind=rng.choice(("line", "scatter")),
+        font_scale=rng.uniform(2.0, 2.4),
     )
     table = markdown_table(
         [x_label, *(header_style(label) for label in labels)],

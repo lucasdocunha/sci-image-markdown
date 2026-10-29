@@ -76,6 +76,30 @@ def test_multi_series_builds_one_wide_table_with_varied_series_and_shared_x():
     assert 15 <= irregular_x <= 45
 
 
+def test_multi_series_uses_fonts_readable_at_training_resolution(monkeypatch):
+    # Training thumbnails figures to ~280 px; default 8-11 pt text becomes unreadable there.
+    from matplotlib.axes import Axes
+
+    sizes = {"legend": [], "label": []}
+    original_legend, original_xlabel = Axes.legend, Axes.set_xlabel
+
+    def legend(self, *args, **kwargs):
+        sizes["legend"].append(kwargs["fontsize"])
+        return original_legend(self, *args, **kwargs)
+
+    def set_xlabel(self, *args, **kwargs):
+        sizes["label"].append(kwargs["fontsize"])
+        return original_xlabel(self, *args, **kwargs)
+
+    monkeypatch.setattr(Axes, "legend", legend)
+    monkeypatch.setattr(Axes, "set_xlabel", set_xlabel)
+    for seed in range(10):
+        _multi_series(random.Random(seed))
+
+    assert min(sizes["legend"]) >= 15
+    assert min(sizes["label"]) >= 20
+
+
 def test_generate_dataset_mixes_in_multi_series_share(tmp_path):
     generate_dataset(tmp_path, num_samples=20, seed=3, multi_series_share=0.5)
 
