@@ -1171,6 +1171,122 @@ def make_hard(rng: random.Random) -> tuple[Image.Image, str]:
     return rng.choice(builders)(rng)
 
 
+MULTI_SERIES_X_AXES = (
+    ("Number of ALD Cycles", 0, 500, 0),
+    ("Number of Cycles", 0, 200, 0),
+    ("ALE Cycles", 0, 100, 0),
+    ("Deposition Temperature (°C)", 80, 400, 0),
+    ("Annealing Temperature (°C)", 300, 1000, 0),
+    ("Precursor Pulse Time (s)", 0.05, 5.0, 2),
+    ("Purge Time (s)", 1, 60, 1),
+    ("Plasma Power (W)", 50, 600, 0),
+    ("Chamber Pressure (mTorr)", 10, 500, 0),
+    ("Depth (nm)", 0, 120, 1),
+    ("Film Thickness (nm)", 1, 50, 1),
+    ("Precursor Exposure (L)", 0, 2000, 0),
+)
+MULTI_SERIES_Y_AXES = (
+    ("Film Thickness", "nm", 50.0, 2),
+    ("Thickness", "Å", 400.0, 1),
+    ("Growth per Cycle", "Å/cycle", 2.0, 3),
+    ("Mass Gain", "ng/cm²", 40.0, 1),
+    ("Etch per Cycle", "Å/cycle", 3.0, 2),
+    ("Resistivity", "µΩ·cm", 900.0, 1),
+    ("Refractive Index", "", 0.6, 3),
+    ("Intensity", "a.u.", 1.0, 3),
+    ("Concentration", "at.%", 30.0, 1),
+    ("Surface Roughness", "nm", 3.0, 2),
+    ("Density", "g/cm³", 2.5, 2),
+    ("Breakdown Field", "MV/cm", 10.0, 2),
+)
+MULTI_SERIES_LABELS: tuple[Callable[[random.Random, int], list[str]], ...] = (
+    lambda rng, n: [f"{t}°C" for t in sorted(rng.sample(range(100, 401, 25), n))],
+    lambda rng, n: rng.sample(["TMA", "TDMAT", "TEMAH", "DEZ", "BDEAS", "TiCl₄", "HfCl₄", "Ru(EtCp)₂"], n),
+    lambda rng, n: [f"{p} W" for p in sorted(rng.sample(range(50, 601, 50), n))],
+    lambda rng, n: [f"{p} Torr" for p in sorted(rng.sample([0.1, 0.2, 0.5, 1, 2, 5, 10], n))],
+    lambda rng, n: rng.sample(["Si", "SiO₂", "Al₂O₃", "TiN", "Pt", "Glass", "Ge", "GaN"], n),
+    lambda rng, n: [f"{s} s" for s in sorted(rng.sample([0.05, 0.1, 0.2, 0.5, 1, 2, 4], n))],
+    lambda rng, n: rng.sample(["H₂O", "O₃", "O₂ plasma", "NH₃ plasma", "H₂ plasma", "N₂ plasma"], n),
+    lambda rng, n: [f"Sample {chr(65 + i)}" for i in range(n)],
+)
+
+
+def _multi_series_x(rng: random.Random, low: float, high: float, decimals: int) -> list[float]:
+    """Return 3-12 sorted, distinct X values; regular grid or irregular sampling half the time."""
+    count = rng.randint(3, 12)
+    if rng.random() < 0.5:
+        step = round((high - low) / (count - 1), decimals) or 10**-decimals
+        values = [round(low + index * step, decimals) for index in range(count)]
+    else:
+        values = [round(rng.uniform(low, high), decimals) for _ in range(count * 2)]
+    values = sorted(set(values))
+    if len(values) > count:
+        values = sorted(rng.sample(values, count))
+    return values
+
+
+def _multi_series_curve(rng: random.Random, shape: str, x_values: Sequence[float], scale: float) -> list[float]:
+    low, high = x_values[0], x_values[-1]
+    span = (high - low) or 1.0
+    amplitude = scale * rng.uniform(0.4, 1.2)
+    offset = scale * rng.uniform(0.0, 0.3)
+    rate = rng.uniform(1.5, 5.0)
+    center = rng.uniform(low + 0.25 * span, low + 0.75 * span)
+    width = span * rng.uniform(0.12, 0.3)
+    curves = {
+        "linear": lambda t: offset + amplitude * t,
+        "saturation": lambda t: offset + amplitude * (1 - math.exp(-rate * t)),
+        "decay": lambda t: offset + amplitude * math.exp(-rate * t),
+        "peak": lambda t: offset + amplitude * math.exp(-(((low + t * span) - center) / width) ** 2),
+    }
+    noise = scale * 0.02
+    return [curves[shape]((x - low) / span) + rng.uniform(-noise, noise) for x in x_values]
+
+
+def _multi_series(rng: random.Random) -> tuple[Image.Image, str]:
+    x_label, low, high, x_decimals = rng.choice(MULTI_SERIES_X_AXES)
+    y_name, y_unit, y_scale, y_decimals = rng.choice(MULTI_SERIES_Y_AXES)
+    labels = rng.choice(MULTI_SERIES_LABELS)(rng, rng.randint(2, 6))
+    x_values = _multi_series_x(rng, low, high, x_decimals)
+    shape = rng.choice(("linear", "saturation", "decay", "peak"))
+    values = [
+        [round(y, y_decimals) for y in _multi_series_curve(rng, shape, x_values, y_scale)]
+        for _ in labels
+    ]
+
+    y_label = f"{y_name} ({y_unit})" if y_unit else y_name
+    unit = f" ({y_unit})" if y_unit else ""
+    header_style = rng.choice(
+        (
+            lambda label: label,
+            lambda label: f"{y_name} ({label})",
+            lambda label: f"{y_name} @ {label}{unit}",
+            lambda label: f"{label} – {y_name}{unit}",
+        )
+    )
+    image = _render_chart(
+        rng,
+        x_values,
+        list(zip(labels, values)),
+        x_label,
+        y_label,
+        plot_kind=rng.choice(("line", "scatter")),
+    )
+    table = markdown_table(
+        [x_label, *(header_style(label) for label in labels)],
+        (
+            (f"{x:.{x_decimals}f}", *(f"{column[row]:.{y_decimals}f}" for column in values))
+            for row, x in enumerate(x_values)
+        ),
+    )
+    return image, table
+
+
+MULTI_SERIES_TEMPLATE = Template(
+    "multi_series", "medium", "atomic_layer_deposition", "experimental", _multi_series
+)
+
+
 BUILDERS: dict[str, Callable[[random.Random], tuple[Image.Image, str]]] = {
     "easy": make_easy,
     "medium": make_medium,
@@ -1265,12 +1381,15 @@ def generate_dataset(
     difficulty: str = "all",
     seed: int = 42,
     overwrite: bool = False,
+    multi_series_share: float = 0.5,
 ) -> dict[str, int]:
     """Create JPEG figures and canonical JSONL splits."""
     if num_samples < 1:
         raise ValueError("num_samples must be at least 1")
     if difficulty != "all" and difficulty not in DIFFICULTIES:
         raise ValueError(f"difficulty must be one of: all, {', '.join(DIFFICULTIES)}")
+    if not 0.0 <= multi_series_share <= 1.0:
+        raise ValueError("multi_series_share must be between 0 and 1")
     destination = Path(output_dir)
     if destination.exists() and any(destination.iterdir()):
         if not overwrite:
@@ -1283,7 +1402,10 @@ def generate_dataset(
     generated: list[tuple[dict[str, str], str, str]] = []
     seen_tables: set[str] = set()
     duplicate_retries = 0
-    for index, template in enumerate(_schedule_templates(num_samples, difficulty, rng)):
+    multi_series_count = round(num_samples * multi_series_share)
+    scheduled = _schedule_templates(num_samples - multi_series_count, difficulty, rng)
+    scheduled += [MULTI_SERIES_TEMPLATE] * multi_series_count
+    for index, template in enumerate(scheduled):
         for attempt in range(25):
             image, table = template.builder(rng)
             if table not in seen_tables:
@@ -1312,6 +1434,7 @@ def generate_dataset(
     manifest = {
         "num_samples": num_samples,
         "seed": seed,
+        "multi_series_share": multi_series_share,
         "difficulty_counts": dict(Counter(level for _, level, _ in generated)),
         "template_counts": dict(Counter(template for _, _, template in generated)),
         "unique_tables": len(seen_tables),
@@ -1342,10 +1465,24 @@ def generate_dataset(
 )
 @click.option("--seed", default=42, show_default=True, type=int, help="Random seed for reproducible data.")
 @click.option("--overwrite", is_flag=True, help="Replace a non-empty output directory.")
-def main(output_dir: str, num_samples: int, difficulty: str, seed: int, overwrite: bool) -> None:
+@click.option(
+    "--multi-series-share",
+    default=0.5,
+    show_default=True,
+    type=click.FloatRange(0.0, 1.0),
+    help="Fraction of samples from the parametric 2-6 series family (one wide table).",
+)
+def main(
+    output_dir: str,
+    num_samples: int,
+    difficulty: str,
+    seed: int,
+    overwrite: bool,
+    multi_series_share: float,
+) -> None:
     """Generate a synthetic scientific-image-to-Markdown dataset."""
     try:
-        splits = generate_dataset(output_dir, num_samples, difficulty, seed, overwrite)
+        splits = generate_dataset(output_dir, num_samples, difficulty, seed, overwrite, multi_series_share)
     except (FileExistsError, ValueError) as error:
         raise click.ClickException(str(error)) from error
     except OSError as error:
