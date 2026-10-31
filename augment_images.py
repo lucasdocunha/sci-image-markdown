@@ -34,6 +34,33 @@ DIAGNOSTIC_SETS = (
     "downscale",
     "sharpen",
     "jpeg",
+    # Digital-relevant candidates being evaluated for the on-the-fly menu.
+    "motion_blur",
+    "median_blur",
+    "tone_curve",
+    "rgb_shift",
+    "translate",
+    # Photometric effects isolated (the full pipeline only has them compounded).
+    "brightness_contrast",
+    "gamma",
+    "hsv",
+    # Geometry isolates: aspect-preserving zoom and slight shear.
+    "zoom_scale",
+    "skew",
+    # Digital raster/render artifacts.
+    "pixelate",
+    "posterize",
+    "ringing_overshoot",
+    "clahe",
+    "zoom_blur",
+    "grid_distortion",
+    # Unrealistic-for-scientific-figures effects, kept only to measure how much
+    # score a catastrophic/irrelevant degradation would cost (comparison floor).
+    "rain",
+    "random_snow",
+    "random_fog",
+    "coarse_dropout",
+    "channel_shuffle",
 )
 
 
@@ -110,6 +137,125 @@ def build_diagnostic_pipeline(name: str, rotation_limit: float, severity: str):
         return compose(A.Sharpen(p=1.0))
     if name == "jpeg":
         return compose(A.ImageCompression(quality_range=s["quality"], p=1.0))
+    # Digital candidates — fixed moderate-calibrated parameters (severity agnostic).
+    if name == "motion_blur":
+        return compose(A.MotionBlur(blur_limit=(5, 9), p=1.0))
+    if name == "median_blur":
+        return compose(A.MedianBlur(blur_limit=(3, 5), p=1.0))
+    if name == "tone_curve":
+        return compose(A.RandomToneCurve(scale=0.15, p=1.0))
+    if name == "rgb_shift":
+        return compose(
+            A.RGBShift(
+                r_shift_limit=(-10, 10),
+                g_shift_limit=(-10, 10),
+                b_shift_limit=(-10, 10),
+                p=1.0,
+            )
+        )
+    if name == "translate":
+        return compose(
+            A.Affine(
+                rotate=0,
+                translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
+                fit_output=True,
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=_WHITE,
+                p=1.0,
+            )
+        )
+    # Comparison floor: catastrophic or irrelevant degradations.
+    if name == "rain":
+        return compose(
+            A.RandomRain(
+                drop_length=8,
+                drop_width=1,
+                drop_color=(180, 180, 180),
+                blur_value=5,
+                brightness_coefficient=0.8,
+                p=1.0,
+            )
+        )
+    if name == "random_snow":
+        return compose(A.RandomSnow(snow_point_range=(0.1, 0.3), brightness_coeff=2.5, p=1.0))
+    if name == "random_fog":
+        return compose(A.RandomFog(fog_coef_range=(0.3, 0.8), alpha_coef=0.08, p=1.0))
+    if name == "coarse_dropout":
+        return compose(
+            A.CoarseDropout(
+                num_holes_range=(1, 3),
+                hole_height_range=(0.08, 0.2),
+                hole_width_range=(0.08, 0.2),
+                fill=255,
+                p=1.0,
+            )
+        )
+    if name == "channel_shuffle":
+        return compose(A.ChannelShuffle(p=1.0))
+    # Photometric isolates — reuse the severity settings (they were only reachable compounded).
+    if name == "brightness_contrast":
+        return compose(
+            A.RandomBrightnessContrast(
+                brightness_limit=s["brightness"], contrast_limit=s["brightness"], p=1.0
+            )
+        )
+    if name == "gamma":
+        return compose(A.RandomGamma(gamma_limit=s["gamma"], p=1.0))
+    if name == "hsv":
+        return compose(A.HueSaturationValue(*s["hsv_limit"], p=1.0))
+    # Geometry isolates.
+    if name == "zoom_scale":
+        return compose(
+            A.Affine(
+                rotate=0,
+                scale=s["stretch"],
+                fit_output=True,
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=_WHITE,
+                p=1.0,
+            )
+        )
+    if name == "skew":
+        return compose(
+            A.Affine(
+                rotate=0,
+                shear=(-5, 5),
+                fit_output=True,
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=_WHITE,
+                p=1.0,
+            )
+        )
+    # Digital raster/render artifacts (fixed, calibrated for digital content).
+    if name == "pixelate":
+        return compose(
+            A.Downscale(
+                scale_range=(0.35, 0.6),
+                interpolation_pair={
+                    "downscale": cv2.INTER_AREA,
+                    "upscale": cv2.INTER_NEAREST,
+                },
+                p=1.0,
+            )
+        )
+    if name == "posterize":
+        return compose(A.Posterize(num_bits=(3, 5), p=1.0))
+    if name == "ringing_overshoot":
+        return compose(A.RingingOvershoot(blur_limit=(5, 9), p=1.0))
+    if name == "clahe":
+        return compose(A.CLAHE(clip_limit=(2.0, 4.0), tile_grid_size=(8, 8), p=1.0))
+    if name == "zoom_blur":
+        return compose(A.ZoomBlur(max_factor=(1.03, 1.1), p=1.0))
+    if name == "grid_distortion":
+        return compose(
+            A.GridDistortion(
+                num_steps=5,
+                distort_limit=(-0.05, 0.05),
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=_WHITE,
+                p=1.0,
+            )
+        )
     raise ValueError(f"Unknown diagnostic set: {name}")
 
 

@@ -176,6 +176,10 @@ def test_diagnostic_mode_creates_isolated_sets(originals, tmp_path):
     expected_sets = {
         "baseline", "rotate", "stretch", "grayscale", "hue_gamma", "perspective",
         "shadow", "blur", "gauss_noise", "iso_noise", "downscale", "sharpen", "jpeg",
+        "motion_blur", "median_blur", "tone_curve", "rgb_shift", "translate",
+        "brightness_contrast", "gamma", "hsv", "zoom_scale", "skew",
+        "pixelate", "posterize", "ringing_overshoot", "clahe", "zoom_blur", "grid_distortion",
+        "rain", "random_snow", "random_fog", "coarse_dropout", "channel_shuffle",
     }
     assert set(manifest["sets"]) == expected_sets
     baseline = manifest["sets"]["baseline"]["images"]

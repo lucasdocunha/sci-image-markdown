@@ -100,15 +100,28 @@ Gera um conjunto por transformação **isolada** — para medir a queda de
 desempenho causada por cada degradação isoladamente, sem misturar efeitos:
 
 ```bash
-python augment_images.py --diagnostic --split test --severity strong \
+python augment_images.py --diagnostic --split test --severity moderate \
   --output-dir data/diagnostic
 ```
 
-13 conjuntos `baseline / rotate / stretch / grayscale / hue_gamma /
-perspective / shadow / blur / gauss_noise / iso_noise / downscale / sharpen /
-jpeg`, cada um em `<output>/<conjunto>/` com seu próprio JSONL e manifest.
-Avaliar cada conjunto com `evaluate.py` e comparar ao `baseline` produz o
-ranking de culpados pelas partes que o modelo erra.
+34 conjuntos, cada um com **um transform isolado** (OU nada, no `baseline`),
+em `<output>/<conjunto>/` com seu próprio JSONL e manifest:
+
+| Grupo | Conjuntos |
+|---|---|
+| Pipeline principal (uso do run v2) | `rotate / stretch / grayscale / hue_gamma / perspective / shadow / blur / gauss_noise / iso_noise / downscale / sharpen / jpeg` |
+| Candidatos digitais (p/ menu on-the-fly) | `motion_blur / median_blur / tone_curve / rgb_shift / translate` |
+| Fotométricos isolados (só existiam compostos) | `brightness_contrast / gamma / hsv` |
+| Geometria isolada | `zoom_scale / skew` |
+| Artefatos de raster/render digitais | `pixelate / posterize / ringing_overshoot / clahe / zoom_blur / grid_distortion` |
+| Piso de comparação (irreais p/ figura científica) | `rain / random_snow / random_fog / coarse_dropout / channel_shuffle` |
+
+Avaliar cada conjunto com `sbatch run_diag_eval.sh <ADAPTER_PATH>
+[data/diagnostic]` (um eval por conjunto + ranking automático de `icdar_score`
+vs `baseline`) produz a sensibilidade por transform: perda **moderada e
+realista** (2–8 pp) = melhor candidato a treinar contra; perda **lethal**
+(>10 pp) irrelevante = fora; perda **mínima** = o modelo já domina. O `clahe`
+pode indicar ganho positivo (Δ > 0) — caso de leitura recuperada.
 
 ## 6. Limitações e próximos passos
 
