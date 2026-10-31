@@ -7,6 +7,8 @@
 #SBATCH --output=/home/adryan.silva/masters/sci-image-markdown/logs/diag_%j.out
 #SBATCH --error=/home/adryan.silva/masters/sci-image-markdown/logs/diag_%j.err
 #SBATCH --time=12:00:00
+#SBATCH --mail-type=BEGIN
+#SBATCH --mail-user=adryanbrabuu@gmail.com
 
 # usage: sbatch run_diag_eval.sh <ADAPTER_PATH> [DIAGNOSTIC_DIR]
 # Evaluates one isolated-transform set at a time and prints the sensitivity ranking.
