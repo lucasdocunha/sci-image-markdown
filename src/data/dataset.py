@@ -3,6 +3,7 @@ Dataset class for Sci-Image scientific figure to markdown table task.
 """
 
 import os
+import random
 from typing import Any, Dict, List, Optional
 from PIL import Image
 import numpy as np
@@ -18,7 +19,9 @@ class SciImageTableDataset(Dataset):
     When ``augment`` is enabled, the image degradation pipeline (rotation,
     blur, noise, JPEG compression, ...) is applied on the fly at every access,
     so the training loop sees a fresh degradation of the same original each
-    epoch. Validation/test datasets must pass ``augment=False``.
+    epoch. ``augment_probability`` gates the whole pipeline at image level:
+    with 0.75, for example, 75% of the accesses are degraded and 25% stay
+    clean. Validation/test datasets must pass ``augment=False``.
     """
 
     def __init__(
@@ -30,6 +33,7 @@ class SciImageTableDataset(Dataset):
         augment: bool = False,
         rotation_limit: float = 10.0,
         severity: str = "moderate",
+        augment_probability: float = 1.0,
         **kwargs: Any,
     ):
         self.data_path = data_path
@@ -39,6 +43,9 @@ class SciImageTableDataset(Dataset):
 
         if severity not in ("mild", "moderate", "strong"):
             raise ValueError(f"severity must be mild, moderate, or strong: {severity}")
+        if not 0.0 <= augment_probability <= 1.0:
+            raise ValueError(f"augment_probability must be in [0, 1]: {augment_probability}")
+        self.augment_probability = augment_probability
 
         self.pipeline = None
         if augment:
@@ -84,7 +91,7 @@ class SciImageTableDataset(Dataset):
 
         image_path = self._resolve_image_path(item["image"])
         image = Image.open(image_path).convert("RGB")
-        if self.pipeline is not None:
+        if self.pipeline is not None and random.random() < self.augment_probability:
             degraded = self.pipeline(image=np.array(image))
             image = Image.fromarray(degraded["image"])
         if self.max_image_resolution:

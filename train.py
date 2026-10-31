@@ -40,6 +40,7 @@ def main(config: str, model_config: str, training_config: str):
         augment=bool(augment_cfg.get("enabled", False)),
         rotation_limit=float(augment_cfg.get("rotation_limit", 10.0)),
         severity=str(augment_cfg.get("severity", "moderate")),
+        augment_probability=float(augment_cfg.get("augment_probability", 1.0)),
     )
     logger.info(f"Loaded {len(train_dataset)} training samples.")
 
