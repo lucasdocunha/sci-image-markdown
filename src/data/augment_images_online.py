@@ -62,6 +62,24 @@ _SEVERITY_SETTINGS = {
         "sharpen_p": 0.25,
         "quality": (30, 55),
     },
+    "salt_pepper": {
+        "stretch": (1.0, 1.0),
+        "gray_p": 0.0,
+        "hsv_limit": (0, 15, 0),
+        "gamma": (100, 100),
+        "gamma_p": 0.0,
+        "brightness": 0.10,
+        "perspective": None,
+        "perspective_p": 0.0,
+        "shadow_p": 0.0,
+        "blur": (3, 3),
+        "gauss_std": (0.0, 0.0),
+        "iso": ((0.0, 0.0), (0.0, 0.0)),
+        "downscale": (1.0, 1.0),
+        "sharpen_p": 0.0,
+        "quality": (100, 100),
+        "salt_pepper": (0.01, 0.03),
+    },
 }
 
 _WHITE = (255, 255, 255)
@@ -113,25 +131,22 @@ def build_pipeline(rotation_limit: float, severity: str) -> A.Compose:
                 p=s["shadow_p"],
             )
         )
-    transforms.append(
-        A.OneOf(
-            [
-                A.GaussianBlur(blur_limit=s["blur"], p=1.0),
-                A.GaussNoise(std_range=s["gauss_std"], per_channel=False, p=1.0),
-                A.ISONoise(color_shift=s["iso"][0], intensity=s["iso"][1], p=1.0),
-                A.Downscale(
-                    scale_range=s["downscale"],
-                    interpolation_pair={
-                        "downscale": cv2.INTER_AREA,
-                        "upscale": cv2.INTER_LINEAR,
-                    },
-                    p=1.0,
-                ),
-            ],
-            # Every copy receives at least one local degradation.
+    oneof_transforms = [
+        A.GaussianBlur(blur_limit=s["blur"], p=1.0),
+        A.GaussNoise(std_range=s["gauss_std"], per_channel=False, p=1.0),
+        A.ISONoise(color_shift=s["iso"][0], intensity=s["iso"][1], p=1.0),
+        A.Downscale(
+            scale_range=s["downscale"],
+            interpolation_pair={
+                "downscale": cv2.INTER_AREA,
+                "upscale": cv2.INTER_LINEAR,
+            },
             p=1.0,
-        )
-    )
+        ),
+    ]
+    if s.get("salt_pepper"):
+        oneof_transforms.append(A.SaltAndPepper(amount=s["salt_pepper"], p=1.0))
+    transforms.append(A.OneOf(oneof_transforms, p=1.0))
     if s["sharpen_p"] > 0:
         transforms.append(A.Sharpen(p=s["sharpen_p"]))
     transforms.append(A.ImageCompression(quality_range=s["quality"], p=1.0))
