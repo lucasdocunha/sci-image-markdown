@@ -8,7 +8,7 @@ os.environ.setdefault("NO_ALBUMENTATIONS_UPDATE", "1")
 import albumentations as A
 import cv2
 
-SEVERITY_LEVELS = ("mild", "moderate", "strong")
+SEVERITY_LEVELS = ("mild", "moderate", "strong", "salt_pepper")
 
 # Each factor gets harder from mild -> strong. Rotation comes from the CLI flag.
 _SEVERITY_SETTINGS = {

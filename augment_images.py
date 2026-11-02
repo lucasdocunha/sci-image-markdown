@@ -356,7 +356,7 @@ def augment_dataset(
     if not 0 <= rotation_limit <= 180:
         raise ValueError("rotation_limit must be between 0 and 180 degrees")
     if severity not in SEVERITY_LEVELS:
-        raise ValueError("severity must be mild, moderate, or strong")
+        raise ValueError("severity must be mild, moderate, strong, or salt_pepper")
     if split not in {"train", "val", "test", "all"}:
         raise ValueError("split must be train, val, test, or all")
 
@@ -477,7 +477,7 @@ def augment_dataset(
 )
 @click.option(
     "--severity", default="moderate",
-    type=click.Choice(["mild", "moderate", "strong"]), show_default=True,
+    type=click.Choice(["mild", "moderate", "strong", "salt_pepper"]), show_default=True,
 )
 @click.option(
     "--diagnostic", is_flag=True, default=False,

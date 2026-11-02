@@ -41,8 +41,8 @@ class SciImageTableDataset(Dataset):
         self.system_prompt = system_prompt
         self.max_image_resolution = max_image_resolution
 
-        if severity not in ("mild", "moderate", "strong"):
-            raise ValueError(f"severity must be mild, moderate, or strong: {severity}")
+        if severity not in ("mild", "moderate", "strong", "salt_pepper"):
+            raise ValueError(f"severity must be mild, moderate, strong, or salt_pepper: {severity}")
         if not 0.0 <= augment_probability <= 1.0:
             raise ValueError(f"augment_probability must be in [0, 1]: {augment_probability}")
         self.augment_probability = augment_probability

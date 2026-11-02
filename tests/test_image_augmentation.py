@@ -79,7 +79,7 @@ def test_default_processes_every_image_and_preserves_splits(originals, tmp_path)
             assert record["table"] == source["table"]
 
 
-@pytest.mark.parametrize("severity", ["mild", "moderate", "strong"])
+@pytest.mark.parametrize("severity", ["mild", "moderate", "strong", "salt_pepper"])
 def test_all_severities_degrade_even_without_rotation(originals, tmp_path, severity):
     output = tmp_path / severity
     manifest = augment_dataset(originals, output, variants=1, rotation_limit=0, severity=severity)
