@@ -14,7 +14,17 @@ from mix_single_graphics import (
     extract_study_key,
     generate_pairs,
     create_mixed_dataset,
+    build_candidate_image_dirs,
 )
+
+
+def test_build_candidate_image_dirs(tmp_path):
+    input_file = tmp_path / "dataset" / "processed" / "train.jsonl"
+    candidates = build_candidate_image_dirs(input_file, explicit_dirs=[tmp_path / "custom"])
+    assert (tmp_path / "custom") in candidates
+    assert (tmp_path / "dataset" / "processed") in candidates
+    assert (tmp_path / "dataset" / "raw") in candidates
+    assert (tmp_path / "dataset" / "raw" / "images") in candidates
 
 
 def test_count_markdown_tables():

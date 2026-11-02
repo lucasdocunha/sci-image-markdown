@@ -48,6 +48,52 @@ def is_single_graphic_record(record: dict[str, Any]) -> bool:
     return count_markdown_tables(table_text) == 1
 
 
+def build_candidate_image_dirs(
+    input_file: Path,
+    explicit_dirs: Optional[Sequence[Path | str]] = None,
+) -> List[Path]:
+    """Auto-discover candidate directories where source images might be located."""
+    seen: set[Path] = set()
+    candidates: List[Path] = []
+
+    def _add(p: Optional[Path | str]) -> None:
+        if not p:
+            return
+        resolved = Path(p).resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            candidates.append(resolved)
+
+    # 1. User-supplied explicit directories take highest priority
+    if explicit_dirs:
+        for d in explicit_dirs:
+            _add(d)
+
+    # 2. Derive paths relative to input_file (crucial for external storage / clusters)
+    input_dir = input_file.resolve().parent
+    _add(input_dir)
+    _add(input_dir / "images")
+
+    dataset_root = input_dir.parent
+    _add(dataset_root)
+    _add(dataset_root / "images")
+    _add(dataset_root / "raw")
+    _add(dataset_root / "raw" / "images")
+    _add(dataset_root / "processed")
+    _add(dataset_root / "processed" / "images")
+
+    # 3. Local workspace fallbacks
+    cwd = Path.cwd().resolve()
+    _add(cwd)
+    _add(cwd / "data")
+    _add(cwd / "data" / "raw")
+    _add(cwd / "data" / "raw" / "images")
+    _add(cwd / "data" / "processed")
+    _add(cwd / "data" / "processed" / "images")
+
+    return candidates
+
+
 def resolve_image_path(image_rel_or_abs: str, base_dirs: Sequence[Path]) -> Optional[Path]:
     """Resolve an image path against a list of candidate directories."""
     path = Path(image_rel_or_abs)
@@ -55,10 +101,11 @@ def resolve_image_path(image_rel_or_abs: str, base_dirs: Sequence[Path]) -> Opti
         return path
 
     for base in base_dirs:
+        # Direct join
         candidate = base / path
         if candidate.exists():
             return candidate
-        # Also check under base / "images" / basename
+        # Subdirectory 'images' with basename
         basename_cand = base / "images" / path.name
         if basename_cand.exists():
             return basename_cand
@@ -66,6 +113,13 @@ def resolve_image_path(image_rel_or_abs: str, base_dirs: Sequence[Path]) -> Opti
         direct_cand = base / path.name
         if direct_cand.exists():
             return direct_cand
+        # Sibling 'raw' directory checks
+        raw_cand = base / "raw" / path
+        if raw_cand.exists():
+            return raw_cand
+        raw_basename_cand = base / "raw" / "images" / path.name
+        if raw_basename_cand.exists():
+            return raw_basename_cand
 
     return None
 
@@ -215,7 +269,7 @@ def generate_pairs(
 def create_mixed_dataset(
     input_file: Path | str,
     output_dir: Path | str,
-    image_dirs: Sequence[Path | str],
+    image_dirs: Optional[Sequence[Path | str]] = None,
     num_samples: Optional[int] = None,
     layout: str = "random",
     alignment: str = "pad",
@@ -229,10 +283,16 @@ def create_mixed_dataset(
     """Filter single-graphic images, create 2-graphic composites, and write JSONL + images."""
     input_file = Path(input_file).resolve()
     output_dir = Path(output_dir).resolve()
-    base_dirs = [Path(d).resolve() for d in image_dirs]
 
     if not input_file.exists():
         raise FileNotFoundError(f"Input file not found: {input_file}")
+
+    # Build all candidate image directories (auto-discovering relative to input_file)
+    base_dirs = build_candidate_image_dirs(input_file, image_dirs)
+    existing_dirs = [d for d in base_dirs if d.exists()]
+    logger.info(f"Discovered {len(existing_dirs)} available image search directories:")
+    for d in existing_dirs:
+        logger.info(f"  -> {d}")
 
     if output_dir.exists() and not overwrite and any(output_dir.iterdir()):
         raise FileExistsError(
@@ -335,6 +395,15 @@ def create_mixed_dataset(
             skipped_count += 1
             continue
 
+    if len(generated_records) == 0 and len(pairs) > 0:
+        dir_list = "\n  ".join(str(d) for d in existing_dirs) if existing_dirs else "  (none found)"
+        raise RuntimeError(
+            f"Could not locate image files for any of the {len(pairs)} pairs! "
+            f"Searched candidate directories:\n  {dir_list}\n\n"
+            f"Hint: Provide the path where your source images reside using --image-dir (or -I), "
+            f"for example:\n  python mix_single_graphics.py --image-dir /path/to/images ..."
+        )
+
     # 4. Save train.jsonl (or output split name)
     stem = input_file.stem  # e.g. 'train'
     out_jsonl = output_dir / f"{stem}.jsonl"
@@ -392,9 +461,8 @@ def create_mixed_dataset(
     "--image-dir",
     "-I",
     multiple=True,
-    default=["data/raw", "data/raw/images", "data/processed", "data/processed/images"],
-    show_default=True,
-    help="Directories to search for source image files.",
+    default=(),
+    help="Optional directory to search for source image files (auto-discovers relative to --input-file if omitted).",
 )
 @click.option(
     "--num-samples",
