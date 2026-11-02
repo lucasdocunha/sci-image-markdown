@@ -6,7 +6,7 @@
 #SBATCH --mem=26G
 #SBATCH --output=/home/adryan.silva/masters/sci-image-markdown/logs/diag_%j.out
 #SBATCH --error=/home/adryan.silva/masters/sci-image-markdown/logs/diag_%j.err
-#SBATCH --time=12:00:00
+#SBATCH --time=24:00:00
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-user=adryanbrabuu@gmail.com
 
@@ -23,9 +23,20 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export PYTHONUNBUFFERED=1
 mkdir -p logs outputs/eval_results
 
-for set_dir in $DIAG/*/; do
-    tag=$(basename "$set_dir")
+# Loop only over the sets the repo actually wants (pruned DIAGNOSTIC_SETS) and
+# resume automatically: sets whose report.json already exists are skipped.
+WANTED=$(python -c "from augment_images import DIAGNOSTIC_SETS; print(' '.join(DIAGNOSTIC_SETS))")
+for tag in $WANTED; do
+    set_dir="$DIAG/$tag"
+    if [ ! -d "$set_dir" ]; then
+        echo "=== AVISO: pasta $set_dir ausente, pulando $tag ==="
+        continue
+    fi
     out="outputs/eval_results/diag_${tag}"
+    if [ -f "$out/report.json" ]; then
+        echo "=== $tag já avaliado (report.json existe), pulando ==="
+        continue
+    fi
     mkdir -p "$out"
     override=$(mktemp)
     cat > "$override" <<EOF

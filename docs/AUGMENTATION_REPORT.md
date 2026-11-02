@@ -104,24 +104,31 @@ python augment_images.py --diagnostic --split test --severity moderate \
   --output-dir data/diagnostic
 ```
 
-34 conjuntos, cada um com **um transform isolado** (OU nada, no `baseline`),
-em `<output>/<conjunto>/` com seu próprio JSONL e manifest:
+14 conjuntos (podados em 2026-11-02 — removidos os já medidos planos pelo run
+266 e os sutis/redundantes), cada um com **um transform isolado** (OU nada, no
+`baseline`), em `<output>/<conjunto>/` com seu próprio JSONL e manifest:
 
 | Grupo | Conjuntos |
 |---|---|
-| Pipeline principal (uso do run v2) | `rotate / stretch / grayscale / hue_gamma / perspective / shadow / blur / gauss_noise / iso_noise / downscale / sharpen / jpeg` |
-| Candidatos digitais (p/ menu on-the-fly) | `motion_blur / median_blur / tone_curve / rgb_shift / translate` |
-| Fotométricos isolados (só existiam compostos) | `brightness_contrast / gamma / hsv` |
-| Geometria isolada | `zoom_scale / skew` |
-| Artefatos de raster/render digitais | `pixelate / posterize / ringing_overshoot / clahe / zoom_blur / grid_distortion` |
-| Piso de comparação (irreais p/ figura científica) | `rain / random_snow / random_fog / coarse_dropout / channel_shuffle` |
+| Controle | `baseline` |
+| Destrutivos realistas | `rotate / stretch / perspective / shadow / sharpen / jpeg / motion_blur / median_blur` |
+| Raster/render digitais | `pixelate / ringing_overshoot / zoom_blur` |
+| Geometria | `skew` |
+| Piso de comparação (irreal) | `rain` |
+
+Removidos: `blur / downscale / grayscale / gamma / brightness_contrast /
+clahe / grid_distortion / coarse_dropout / channel_shuffle` (medidos planos,
+±1 pp), `tone_curve / rgb_shift / hsv / translate / posterize / zoom_scale /
+gauss_noise / iso_noise / hue_gamma` (sutis ou redundantes) e `random_snow /
+random_fog` (piso redundante do `rain`).
+Resultados parciais do run 266 continuam consultáveis com
+`python rank_diag.py`.
 
 Avaliar cada conjunto com `sbatch run_diag_eval.sh <ADAPTER_PATH>
-[data/diagnostic]` (um eval por conjunto + ranking automático de `icdar_score`
-vs `baseline`) produz a sensibilidade por transform: perda **moderada e
+[data/diagnostic]` (resume automático: pula conjuntos com `report.json`
+existente) produz a sensibilidade por transform: perda **moderada e
 realista** (2–8 pp) = melhor candidato a treinar contra; perda **lethal**
-(>10 pp) irrelevante = fora; perda **mínima** = o modelo já domina. O `clahe`
-pode indicar ganho positivo (Δ > 0) — caso de leitura recuperada.
+(>10 pp) irrelevante = fora; perda **mínima** = o modelo já domina.
 
 ## 6. Limitações e próximos passos
 

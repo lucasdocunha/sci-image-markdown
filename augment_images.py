@@ -20,47 +20,27 @@ from src.data.augment_images_online import (
 
 
 # Diagnostic presets: one isolated transformation (or none) per output set.
+# Pruned to the sets most likely to yield insight: strong realistic degradings
+# plus a single floor (`rain`) to calibrate the sensitivity scale. Removed:
+# sets already measured flat by the 266 run (blur, downscale, grayscale, gamma,
+# brightness_contrast, clahe, grid_distortion, coarse_dropout, channel_shuffle)
+# and subtle/redundant ones (tone_curve, rgb_shift, hsv, translate, zoom_scale,
+# posterize, gauss/iso noise lineage, hue_gamma, snow/fog).
 DIAGNOSTIC_SETS = (
     "baseline",
     "rotate",
     "stretch",
-    "grayscale",
-    "hue_gamma",
     "perspective",
     "shadow",
-    "blur",
-    "gauss_noise",
-    "iso_noise",
-    "downscale",
     "sharpen",
     "jpeg",
-    # Digital-relevant candidates being evaluated for the on-the-fly menu.
     "motion_blur",
     "median_blur",
-    "tone_curve",
-    "rgb_shift",
-    "translate",
-    # Photometric effects isolated (the full pipeline only has them compounded).
-    "brightness_contrast",
-    "gamma",
-    "hsv",
-    # Geometry isolates: aspect-preserving zoom and slight shear.
-    "zoom_scale",
-    "skew",
-    # Digital raster/render artifacts.
     "pixelate",
-    "posterize",
     "ringing_overshoot",
-    "clahe",
     "zoom_blur",
-    "grid_distortion",
-    # Unrealistic-for-scientific-figures effects, kept only to measure how much
-    # score a catastrophic/irrelevant degradation would cost (comparison floor).
+    "skew",
     "rain",
-    "random_snow",
-    "random_fog",
-    "coarse_dropout",
-    "channel_shuffle",
 )
 
 
