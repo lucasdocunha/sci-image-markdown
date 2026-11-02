@@ -79,7 +79,7 @@ def test_default_processes_every_image_and_preserves_splits(originals, tmp_path)
             assert record["table"] == source["table"]
 
 
-@pytest.mark.parametrize("severity", ["mild", "moderate", "strong"])
+@pytest.mark.parametrize("severity", ["mild", "moderate", "strong", "salt_pepper"])
 def test_all_severities_degrade_even_without_rotation(originals, tmp_path, severity):
     output = tmp_path / severity
     manifest = augment_dataset(originals, output, variants=1, rotation_limit=0, severity=severity)
@@ -174,25 +174,23 @@ def test_diagnostic_mode_creates_isolated_sets(originals, tmp_path):
     manifest = augment_dataset(originals, output, split="test", diagnostic=True, seed=5)
     assert manifest["mode"] == "diagnostic"
     expected_sets = {
-        "baseline", "rotate", "stretch", "grayscale", "hue_gamma", "perspective",
-        "shadow", "blur", "gauss_noise", "iso_noise", "downscale", "sharpen", "jpeg",
+        "baseline", "rotate", "stretch", "perspective", "shadow", "sharpen",
+        "jpeg", "motion_blur", "median_blur", "pixelate", "ringing_overshoot",
+        "zoom_blur", "skew", "rain",
     }
     assert set(manifest["sets"]) == expected_sets
     baseline = manifest["sets"]["baseline"]["images"]
     assert len(baseline) == 3
     assert all(entry["transforms"] == [] for entry in baseline)
-    blur_entry = manifest["sets"]["blur"]["images"][0]
-    assert blur_entry["transforms"] == ["GaussianBlur"]
-    stem_of = {e["id"]: Path(e["source_image"]).stem for e in manifest["sets"]["blur"]["images"]}
-    for record in read_records(output / "blur" / "test.jsonl"):
+    motion_entry = manifest["sets"]["motion_blur"]["images"][0]
+    assert motion_entry["transforms"] == ["MotionBlur"]
+    stem_of = {e["id"]: Path(e["source_image"]).stem for e in manifest["sets"]["motion_blur"]["images"]}
+    for record in read_records(output / "motion_blur" / "test.jsonl"):
         assert Path(record["image"]).stem.startswith(stem_of[record["id"]])
-    for entry in manifest["sets"]["grayscale"]["images"]:
-        record_file = (
-            output / "grayscale" / f"images/{Path(entry['source_image']).stem}__aug_001.png"
-        )
-        with Image.open(record_file) as image:
-            array = np.array(image)
-        red, green, blue = array[..., 0], array[..., 1], array[..., 2]
-        assert np.allclose(red, green, atol=2) and np.allclose(green, blue, atol=2)
+    skew_record = read_records(output / "skew" / "test.jsonl")[0]
+    skew_file = output / "skew" / skew_record["image"]
+    assert skew_file.is_file()
+    with Image.open(skew_file) as image:
+        image.verify()
     for set_name in expected_sets:
         assert len(read_records(output / set_name / "test.jsonl")) == 3

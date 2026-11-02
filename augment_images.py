@@ -2,11 +2,7 @@
 
 import hashlib
 import json
-import os
 from pathlib import Path
-
-# Avoid a network version check when running this offline data preparation tool.
-os.environ.setdefault("NO_ALBUMENTATIONS_UPDATE", "1")
 
 import albumentations as A
 import click
@@ -14,149 +10,37 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps
 
-# Each factor gets harder from mild -> strong. Rotation comes from the CLI flag.
-_SEVERITY_SETTINGS = {
-    "mild": {
-        "stretch": (0.9, 1.05),
-        "gray_p": 0.0,
-        "hsv_limit": (5, 10, 10),
-        "gamma": (75, 125),
-        "gamma_p": 0.3,
-        "brightness": 0.08,
-        "perspective": None,
-        "shadow_p": 0.0,
-        "blur": (3, 3),
-        "gauss_std": (0.02, 0.05),
-        "iso": ((0.01, 0.03), (0.2, 0.4)),
-        "downscale": (0.8, 0.95),
-        "sharpen_p": 0.0,
-        "quality": (75, 90),
-    },
-    "moderate": {
-        "stretch": (0.85, 1.15),
-        "gray_p": 0.15,
-        "hsv_limit": (10, 20, 20),
-        "gamma": (60, 140),
-        "gamma_p": 0.5,
-        "brightness": 0.15,
-        "perspective": (0.03, 0.07),
-        "perspective_p": 0.15,
-        "shadow_p": 0.15,
-        "blur": (3, 5),
-        "gauss_std": (0.04, 0.09),
-        "iso": ((0.01, 0.05), (0.3, 0.7)),
-        "downscale": (0.65, 0.9),
-        "sharpen_p": 0.15,
-        "quality": (45, 75),
-    },
-    "strong": {
-        "stretch": (0.8, 1.25),
-        "gray_p": 0.3,
-        "hsv_limit": (15, 30, 30),
-        "gamma": (50, 150),
-        "gamma_p": 0.7,
-        "brightness": 0.2,
-        "perspective": (0.05, 0.1),
-        "perspective_p": 0.3,
-        "shadow_p": 0.25,
-        "blur": (3, 7),
-        "gauss_std": (0.06, 0.14),
-        "iso": ((0.02, 0.08), (0.5, 1.0)),
-        "downscale": (0.55, 0.85),
-        "sharpen_p": 0.25,
-        "quality": (30, 55),
-    },
-}
-
-_WHITE = (255, 255, 255)
-
-
-def _affine(settings: dict, rotation_limit: float) -> A.Affine:
-    """Rotation plus independent per-axis stretch, always with a white border fit."""
-    stretch = settings["stretch"]
-    return A.Affine(
-        rotate=(-rotation_limit, rotation_limit),
-        scale={"x": stretch, "y": stretch},
-        fit_output=True,
-        border_mode=cv2.BORDER_CONSTANT,
-        fill=_WHITE,
-        p=1.0,
-    )
-
-
-def build_pipeline(rotation_limit: float, severity: str) -> A.Compose:
-    """Simulate a realistic photo/scan of a printed figure, accumulated in one pass."""
-    s = _SEVERITY_SETTINGS[severity]
-    transforms = [_affine(s, rotation_limit)]
-    if s["perspective"]:
-        transforms.append(
-            A.Perspective(
-                scale=s["perspective"],
-                keep_size=True,
-                fit_output=True,
-                border_mode=cv2.BORDER_CONSTANT,
-                fill=_WHITE,
-                p=s["perspective_p"],
-            )
-        )
-    if s["gray_p"] > 0:
-        transforms.append(A.ToGray(p=s["gray_p"]))
-    transforms.append(A.HueSaturationValue(*s["hsv_limit"], p=0.5))
-    transforms.append(A.RandomGamma(*s["gamma"], p=s["gamma_p"]))
-    transforms.append(
-        A.RandomBrightnessContrast(
-            brightness_limit=s["brightness"], contrast_limit=s["brightness"], p=0.7
-        )
-    )
-    if s["shadow_p"] > 0:
-        transforms.append(
-            A.RandomShadow(
-                shadow_roi=(0.0, 0.0, 1.0, 1.0),
-                num_shadows_limit=(1, 2),
-                shadow_intensity_range=(0.3, 0.6),
-                p=s["shadow_p"],
-            )
-        )
-    transforms.append(
-        A.OneOf(
-            [
-                A.GaussianBlur(blur_limit=s["blur"], p=1.0),
-                A.GaussNoise(std_range=s["gauss_std"], per_channel=False, p=1.0),
-                A.ISONoise(color_shift=s["iso"][0], intensity=s["iso"][1], p=1.0),
-                A.Downscale(
-                    scale_range=s["downscale"],
-                    interpolation_pair={
-                        "downscale": cv2.INTER_AREA,
-                        "upscale": cv2.INTER_LINEAR,
-                    },
-                    p=1.0,
-                ),
-            ],
-            # Every copy receives at least one local degradation.
-            p=1.0,
-        )
-    )
-    if s["sharpen_p"] > 0:
-        transforms.append(A.Sharpen(p=s["sharpen_p"]))
-    transforms.append(A.ImageCompression(quality_range=s["quality"], p=1.0))
-    return A.Compose(transforms, strict=True, save_applied_params=True)
+from src.data.augment_images_online import (
+    SEVERITY_LEVELS,
+    _SEVERITY_SETTINGS,
+    _WHITE,
+    _affine,
+    build_pipeline,
+)
 
 
 # Diagnostic presets: one isolated transformation (or none) per output set.
+# Pruned to the sets most likely to yield insight: strong realistic degradings
+# plus a single floor (`rain`) to calibrate the sensitivity scale. Removed:
+# sets already measured flat by the 266 run (blur, downscale, grayscale, gamma,
+# brightness_contrast, clahe, grid_distortion, coarse_dropout, channel_shuffle)
+# and subtle/redundant ones (tone_curve, rgb_shift, hsv, translate, zoom_scale,
+# posterize, gauss/iso noise lineage, hue_gamma, snow/fog).
 DIAGNOSTIC_SETS = (
     "baseline",
     "rotate",
     "stretch",
-    "grayscale",
-    "hue_gamma",
     "perspective",
     "shadow",
-    "blur",
-    "gauss_noise",
-    "iso_noise",
-    "downscale",
     "sharpen",
     "jpeg",
+    "motion_blur",
+    "median_blur",
+    "pixelate",
+    "ringing_overshoot",
+    "zoom_blur",
+    "skew",
+    "rain",
 )
 
 
@@ -233,6 +117,125 @@ def build_diagnostic_pipeline(name: str, rotation_limit: float, severity: str):
         return compose(A.Sharpen(p=1.0))
     if name == "jpeg":
         return compose(A.ImageCompression(quality_range=s["quality"], p=1.0))
+    # Digital candidates — fixed moderate-calibrated parameters (severity agnostic).
+    if name == "motion_blur":
+        return compose(A.MotionBlur(blur_limit=(5, 9), p=1.0))
+    if name == "median_blur":
+        return compose(A.MedianBlur(blur_limit=(3, 5), p=1.0))
+    if name == "tone_curve":
+        return compose(A.RandomToneCurve(scale=0.15, p=1.0))
+    if name == "rgb_shift":
+        return compose(
+            A.RGBShift(
+                r_shift_limit=(-10, 10),
+                g_shift_limit=(-10, 10),
+                b_shift_limit=(-10, 10),
+                p=1.0,
+            )
+        )
+    if name == "translate":
+        return compose(
+            A.Affine(
+                rotate=0,
+                translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
+                fit_output=True,
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=_WHITE,
+                p=1.0,
+            )
+        )
+    # Comparison floor: catastrophic or irrelevant degradations.
+    if name == "rain":
+        return compose(
+            A.RandomRain(
+                drop_length=8,
+                drop_width=1,
+                drop_color=(180, 180, 180),
+                blur_value=5,
+                brightness_coefficient=0.8,
+                p=1.0,
+            )
+        )
+    if name == "random_snow":
+        return compose(A.RandomSnow(snow_point_range=(0.1, 0.3), brightness_coeff=2.5, p=1.0))
+    if name == "random_fog":
+        return compose(A.RandomFog(fog_coef_range=(0.3, 0.8), alpha_coef=0.08, p=1.0))
+    if name == "coarse_dropout":
+        return compose(
+            A.CoarseDropout(
+                num_holes_range=(1, 3),
+                hole_height_range=(0.08, 0.2),
+                hole_width_range=(0.08, 0.2),
+                fill=255,
+                p=1.0,
+            )
+        )
+    if name == "channel_shuffle":
+        return compose(A.ChannelShuffle(p=1.0))
+    # Photometric isolates — reuse the severity settings (they were only reachable compounded).
+    if name == "brightness_contrast":
+        return compose(
+            A.RandomBrightnessContrast(
+                brightness_limit=s["brightness"], contrast_limit=s["brightness"], p=1.0
+            )
+        )
+    if name == "gamma":
+        return compose(A.RandomGamma(gamma_limit=s["gamma"], p=1.0))
+    if name == "hsv":
+        return compose(A.HueSaturationValue(*s["hsv_limit"], p=1.0))
+    # Geometry isolates.
+    if name == "zoom_scale":
+        return compose(
+            A.Affine(
+                rotate=0,
+                scale=s["stretch"],
+                fit_output=True,
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=_WHITE,
+                p=1.0,
+            )
+        )
+    if name == "skew":
+        return compose(
+            A.Affine(
+                rotate=0,
+                shear=(-5, 5),
+                fit_output=True,
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=_WHITE,
+                p=1.0,
+            )
+        )
+    # Digital raster/render artifacts (fixed, calibrated for digital content).
+    if name == "pixelate":
+        return compose(
+            A.Downscale(
+                scale_range=(0.35, 0.6),
+                interpolation_pair={
+                    "downscale": cv2.INTER_AREA,
+                    "upscale": cv2.INTER_NEAREST,
+                },
+                p=1.0,
+            )
+        )
+    if name == "posterize":
+        return compose(A.Posterize(num_bits=(3, 5), p=1.0))
+    if name == "ringing_overshoot":
+        return compose(A.RingingOvershoot(blur_limit=(5, 9), p=1.0))
+    if name == "clahe":
+        return compose(A.CLAHE(clip_limit=(2.0, 4.0), tile_grid_size=(8, 8), p=1.0))
+    if name == "zoom_blur":
+        return compose(A.ZoomBlur(max_factor=(1.03, 1.1), p=1.0))
+    if name == "grid_distortion":
+        return compose(
+            A.GridDistortion(
+                num_steps=5,
+                distort_limit=(-0.05, 0.05),
+                border_mode=cv2.BORDER_CONSTANT,
+                fill=_WHITE,
+                p=1.0,
+            )
+        )
     raise ValueError(f"Unknown diagnostic set: {name}")
 
 
@@ -352,8 +355,8 @@ def augment_dataset(
         raise ValueError("variants must be positive")
     if not 0 <= rotation_limit <= 180:
         raise ValueError("rotation_limit must be between 0 and 180 degrees")
-    if severity not in {"mild", "moderate", "strong"}:
-        raise ValueError("severity must be mild, moderate, or strong")
+    if severity not in SEVERITY_LEVELS:
+        raise ValueError("severity must be mild, moderate, strong, or salt_pepper")
     if split not in {"train", "val", "test", "all"}:
         raise ValueError("split must be train, val, test, or all")
 
@@ -474,7 +477,7 @@ def augment_dataset(
 )
 @click.option(
     "--severity", default="moderate",
-    type=click.Choice(["mild", "moderate", "strong"]), show_default=True,
+    type=click.Choice(["mild", "moderate", "strong", "salt_pepper"]), show_default=True,
 )
 @click.option(
     "--diagnostic", is_flag=True, default=False,
