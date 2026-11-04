@@ -35,6 +35,8 @@ class TablePredictor:
             system_prompt=data_cfg.get("system_prompt", "Extract the plotted quantitative data into a clean Markdown table."),
             max_new_tokens=eval_cfg.get("max_new_tokens", 1024),
             temperature=eval_cfg.get("temperature", 0.0),
+            min_pixels=data_cfg.get("min_pixels"),
+            max_pixels=data_cfg.get("max_pixels"),
         )
 
     def predict_image(self, image_input: Union[str, Image.Image]) -> Dict[str, Any]:

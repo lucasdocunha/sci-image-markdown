@@ -20,29 +20,42 @@ console = Console()
 
 @click.command()
 @click.option("--config", default="configs/default.yaml", help="Path to base configuration YAML.")
+@click.option("--model-config", default=None, help="Optional model override configuration YAML.")
+@click.option("--training-config", default=None, help="Optional training/data override configuration YAML.")
 @click.option("--test-file", default="data/processed/test.jsonl", help="Path to test dataset JSONL.")
 @click.option("--adapter-path", default=None, help="Optional path to trained PEFT LoRA adapter.")
 @click.option("--predictions-file", default=None, help="Optional path to pre-generated predictions JSONL for offline evaluation.")
 @click.option("--output-report", default="outputs/eval_results/report.json", help="Path to save evaluation JSON report.")
 @click.option("--save-predictions", default=None, help="Optional path to save generated predictions JSONL.")
+@click.option("--max-samples", default=None, type=int, help="Optional maximum number of samples to evaluate.")
 def main(
     config: str,
+    model_config: str,
+    training_config: str,
     test_file: str,
     adapter_path: str,
     predictions_file: str,
     output_report: str,
     save_predictions: str,
+    max_samples: int,
 ):
     """Runs full evaluation and prints domain table extraction metrics."""
     from tqdm import tqdm
     import torch
 
     cfg = load_config(config)
+    if model_config:
+        cfg = merge_configs(cfg, load_config(model_config))
+    if training_config:
+        cfg = merge_configs(cfg, load_config(training_config))
     eval_cfg = cfg.get("evaluation", {})
     evaluator = TableExtractionEvaluator(rel_tol=eval_cfg.get("numerical_relative_tolerance", 0.05))
 
     logger.info(f"Loading test records from {test_file}...")
     test_records = read_jsonl(test_file)
+    if max_samples is not None and max_samples > 0:
+        test_records = test_records[:max_samples]
+        logger.info(f"Subsetting evaluation to first {len(test_records)} samples.")
     ground_truths = [r.get("table", r.get("markdown", "")) for r in test_records]
 
     pred_records = []
@@ -56,6 +69,11 @@ def main(
         predictor = TablePredictor(cfg, adapter_path=adapter_path)
         predictions = []
         img_folder = cfg.get("data", {}).get("image_folder", "data/raw/images")
+
+        if save_predictions is None:
+            save_predictions = os.path.join(os.path.dirname(os.path.abspath(output_report)), "predictions.jsonl")
+        os.makedirs(os.path.dirname(os.path.abspath(save_predictions)), exist_ok=True)
+        pred_file_handle = open(save_predictions, "w", encoding="utf-8")
         
         with torch.inference_mode():
             for idx, rec in enumerate(tqdm(test_records, desc=f"Evaluating [{tag}]", unit="sample")):
@@ -87,16 +105,21 @@ def main(
                     is_valid = False
 
                 predictions.append(pred_table)
-                pred_records.append({
+                item = {
                     "index": idx,
                     "image": img_path,
                     "ground_truth": ground_truths[idx],
                     "markdown_table": pred_table,
                     "is_valid_table": is_valid,
-                })
+                }
+                pred_records.append(item)
+                pred_file_handle.write(json.dumps(item, ensure_ascii=False) + "\n")
+                pred_file_handle.flush()
 
                 if torch.cuda.is_available() and (idx + 1) % 25 == 0:
                     torch.cuda.empty_cache()
+
+        pred_file_handle.close()
 
     logger.info(f"Evaluating metrics over {len(predictions)} samples...")
     results = evaluator.evaluate_batch(predictions, ground_truths)
@@ -121,15 +144,17 @@ def main(
         json.dump(results, f, indent=2)
     logger.info(f"Evaluation report saved to: {output_report}")
 
-    # Save predictions jsonl
+    # Save predictions jsonl (if not already written incrementally)
     if save_predictions is None:
         save_predictions = os.path.join(os.path.dirname(os.path.abspath(output_report)), "predictions.jsonl")
     
-    if pred_records:
+    if predictions_file and pred_records:
         with open(save_predictions, "w", encoding="utf-8") as f:
             for item in pred_records:
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
-        logger.info(f"Sample predictions saved to: {save_predictions}")
+        logger.info(f"Predictions saved to: {save_predictions}")
+    elif pred_records:
+        logger.info(f"Predictions saved to: {save_predictions}")
 
 
 if __name__ == "__main__":

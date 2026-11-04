@@ -9,7 +9,11 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from rouge_score import rouge_scorer
 
 from .table_parser import parse_markdown_to_dataframe
-from .table_metrics import compute_normalized_edit_distance, compute_numerical_cell_metrics
+from .table_metrics import (
+    compute_normalized_edit_distance,
+    compute_numerical_cell_metrics,
+    compute_icdar_score,
+)
 
 
 class TableExtractionEvaluator:
@@ -44,6 +48,9 @@ class TableExtractionEvaluator:
         # Numerical metrics
         num_metrics = compute_numerical_cell_metrics(pred_df, target_df, rel_tol=self.rel_tol)
 
+        # ICDAR Official Metrics (TEDS, RMS, Composite)
+        icdar_metrics = compute_icdar_score(pred_text, target_text, rel_tol=self.rel_tol)
+
         return {
             "valid_table": 1.0 if is_pred_valid else 0.0,
             "exact_match": exact_match,
@@ -57,6 +64,9 @@ class TableExtractionEvaluator:
             "cell_f1": num_metrics["f1"],
             "cell_rmse": num_metrics["rmse"],
             "cell_rne": num_metrics["mean_rne"],
+            "teds": icdar_metrics["teds"],
+            "icdar_rms": icdar_metrics["rms"],
+            "icdar_score": icdar_metrics["icdar_score"],
         }
 
     def evaluate_batch(self, predictions: List[str], targets: List[str]) -> Dict[str, float]:

@@ -1,0 +1,5 @@
+# Evaluation configuration for testing with full / native image resolution
+data:
+  max_image_resolution: null   # Disables PIL thumbnail downsampling (keeps native resolution)
+  min_pixels: 50176            # Minimum vision patch grid (64 * 28 * 28)
+  max_pixels: 1003520          # 1280 * 28 * 28 (~1 megapixel, covers 99%+ of dataset at 100% native res)

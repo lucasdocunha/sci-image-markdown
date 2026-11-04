@@ -3,7 +3,7 @@ Domain metrics for Table Extraction: RNE, RMSE, Normalized Edit Distance, Precis
 """
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import Levenshtein
@@ -26,18 +26,40 @@ def compute_normalized_edit_distance(pred_str: str, target_str: str) -> float:
     return max(0.0, 1.0 - (dist / max_len))
 
 
-def extract_numerical_cells(df: pd.DataFrame) -> List[float]:
-    """Extracts all numeric float values present in a DataFrame."""
+from .table_parser import sanitize_cell_text
+
+
+def sanitize_numerical_cell(val: Any) -> Optional[float]:
+    """Converts a table cell value or sanitized string into a float."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val) if not (math.isnan(val) or math.isinf(val)) else None
+
+    cleaned = sanitize_cell_text(str(val))
+    try:
+        num = float(cleaned)
+        return num if not (math.isnan(num) or math.isinf(num)) else None
+    except ValueError:
+        return None
+
+
+def extract_numerical_cells(df: Any) -> List[float]:
+    """Extracts all numeric float values present in a DataFrame or list of DataFrames."""
+    if df is None:
+        return []
+    dfs = df if isinstance(df, list) else [df]
     values = []
-    for col in df.columns:
-        for val in df[col]:
-            try:
-                num = float(val)
-                if not (math.isnan(num) or math.isinf(num)):
+    for d in dfs:
+        if d is None or not hasattr(d, "columns"):
+            continue
+        for col in d.columns:
+            for val in d[col]:
+                num = sanitize_numerical_cell(val)
+                if num is not None:
                     values.append(num)
-            except (ValueError, TypeError):
-                continue
     return values
+
 
 
 def compute_numerical_cell_metrics(
@@ -117,3 +139,218 @@ def compute_numerical_cell_metrics(
         "rmse": rmse,
         "mean_rne": mean_rne,
     }
+
+
+class TableNode:
+    """Represents a node in a table tree structure for TEDS computation."""
+
+    def __init__(self, label: str, text: str = ""):
+        self.label = label
+        self.text = str(text).strip()
+        self.children: List["TableNode"] = []
+
+
+def parse_markdown_to_tree(md_text: str) -> TableNode:
+    """Parses a Markdown table string into a TableNode tree.
+    Supports multiple tables and applies cell sanitization for robust structural comparison.
+    """
+    from .table_parser import parse_all_markdown_tables
+
+    dfs = parse_all_markdown_tables(md_text)
+    if not dfs:
+        return TableNode("table")
+
+    if len(dfs) == 1:
+        df = dfs[0]
+        root = TableNode("table")
+        tr_head = TableNode("tr")
+        for col in df.columns:
+            tr_head.children.append(TableNode("th", text=sanitize_cell_text(str(col))))
+        root.children.append(tr_head)
+
+        for _, row in df.iterrows():
+            tr_row = TableNode("tr")
+            for val in row:
+                tr_row.children.append(TableNode("td", text=sanitize_cell_text(str(val))))
+            root.children.append(tr_row)
+        return root
+
+    root = TableNode("tables")
+    for df in dfs:
+        t_node = TableNode("table")
+        tr_head = TableNode("tr")
+        for col in df.columns:
+            tr_head.children.append(TableNode("th", text=sanitize_cell_text(str(col))))
+        t_node.children.append(tr_head)
+
+        for _, row in df.iterrows():
+            tr_row = TableNode("tr")
+            for val in row:
+                tr_row.children.append(TableNode("td", text=sanitize_cell_text(str(val))))
+            t_node.children.append(tr_row)
+        root.children.append(t_node)
+
+    return root
+
+
+def compute_tree_edit_distance(tree1: TableNode, tree2: TableNode) -> Tuple[float, int, int]:
+    """Computes tree edit distance using the Zhang-Shasha algorithm.
+    
+    Returns:
+        Tuple of (tree_edit_distance, num_nodes_tree1, num_nodes_tree2)
+    """
+    def postorder(node: TableNode, nodes: List[TableNode]):
+        for c in node.children:
+            postorder(c, nodes)
+        nodes.append(node)
+
+    nodes1: List[TableNode] = []
+    nodes2: List[TableNode] = []
+    postorder(tree1, nodes1)
+    postorder(tree2, nodes2)
+
+    n1, n2 = len(nodes1), len(nodes2)
+    if n1 == 0 and n2 == 0:
+        return 0.0, 0, 0
+    if n1 == 0:
+        return float(n2), 0, n2
+    if n2 == 0:
+        return float(n1), n1, 0
+
+    def get_lld(nodes: List[TableNode]) -> Dict[int, int]:
+        lld = {}
+        for i, node in enumerate(nodes):
+            curr = node
+            while curr.children:
+                curr = curr.children[0]
+            lld[i] = nodes.index(curr)
+        return lld
+
+    lld1 = get_lld(nodes1)
+    lld2 = get_lld(nodes2)
+
+    def get_keyroots(nodes: List[TableNode], lld: Dict[int, int]) -> List[int]:
+        kr = []
+        for i in range(len(nodes)):
+            is_kr = True
+            for j in range(i + 1, len(nodes)):
+                if lld[j] == lld[i]:
+                    is_kr = False
+                    break
+            if is_kr:
+                kr.append(i)
+        return kr
+
+    kr1 = get_keyroots(nodes1, lld1)
+    kr2 = get_keyroots(nodes2, lld2)
+
+    def cost(u: TableNode, v: TableNode) -> float:
+        if u.label != v.label:
+            return 1.0
+        if u.text or v.text:
+            m = max(len(u.text), len(v.text), 1)
+            return Levenshtein.distance(u.text, v.text) / m
+        return 0.0
+
+    treedist: Dict[Tuple[int, int], float] = {}
+    fd: Dict[Tuple[int, int], float] = {}
+
+    for i in kr1:
+        for j in kr2:
+            fd.clear()
+            for p in range(lld1[i] - 1, i + 1):
+                fd[(p, lld2[j] - 1)] = (p - lld1[i] + 1) * 1.0
+            for q in range(lld2[j] - 1, j + 1):
+                fd[(lld1[i] - 1, q)] = (q - lld2[j] + 1) * 1.0
+            fd[(lld1[i] - 1, lld2[j] - 1)] = 0.0
+
+            for p in range(lld1[i], i + 1):
+                for q in range(lld2[j], j + 1):
+                    c_del = fd[(p - 1, q)] + 1.0
+                    c_ins = fd[(p, q - 1)] + 1.0
+                    if lld1[p] == lld1[i] and lld2[q] == lld2[j]:
+                        c_match = fd[(p - 1, q - 1)] + cost(nodes1[p], nodes2[q])
+                        treedist[(p, q)] = c_match
+                    else:
+                        c_match = fd[(lld1[p] - 1, lld2[q] - 1)] + treedist.get((p, q), 1.0)
+                    fd[(p, q)] = min(c_del, c_ins, c_match)
+
+    ted = fd[(n1 - 1, n2 - 1)]
+    return ted, n1, n2
+
+
+def compute_teds(pred_md: str, target_md: str) -> float:
+    """Computes Tree Edit Distance-based Similarity (TEDS) between two Markdown tables.
+    
+    Returns a score in [0.0, 1.0], where 1.0 indicates structural and content identity.
+    If the predicted text is not a valid table while target is valid, returns 0.0.
+    """
+    from .table_parser import parse_all_markdown_tables
+
+    if not pred_md and not target_md:
+        return 1.0
+    if not pred_md or not target_md:
+        return 0.0
+
+    pred_dfs = parse_all_markdown_tables(pred_md)
+    target_dfs = parse_all_markdown_tables(target_md)
+
+    if not pred_dfs and not target_dfs:
+        return 1.0 if pred_md.strip() == target_md.strip() else 0.0
+    if not pred_dfs or not target_dfs:
+        return 0.0
+
+    tree_pred = parse_markdown_to_tree(pred_md)
+    tree_target = parse_markdown_to_tree(target_md)
+
+    ted, n_pred, n_target = compute_tree_edit_distance(tree_pred, tree_target)
+    max_nodes = max(n_pred, n_target)
+    if max_nodes <= 1:
+        return 1.0 if (n_pred == n_target) else 0.0
+
+    return max(0.0, 1.0 - (ted / max_nodes))
+
+
+def compute_icdar_rms(
+    pred_df: Any,
+    target_df: Any,
+    rel_tol: float = 0.05
+) -> float:
+    """Computes the Relative Matching Score (RMS) for numerical cell values.
+    
+    Formula: RMS = cell_recall * max(0.0, 1.0 - mean_rne)
+    Returns:
+        float score in [0.0, 1.0].
+    """
+    metrics = compute_numerical_cell_metrics(pred_df, target_df, rel_tol=rel_tol)
+    recall = metrics.get("recall", 0.0)
+    rne = metrics.get("mean_rne", 0.0)
+    if math.isnan(rne):
+        rne = 0.0
+    return max(0.0, min(1.0, recall * max(0.0, 1.0 - rne)))
+
+
+def compute_icdar_score(
+    pred_md: str,
+    target_md: str,
+    rel_tol: float = 0.05
+) -> Dict[str, float]:
+    """Computes official ICDAR 2026 Task 2 composite metrics: TEDS, RMS, and composite score.
+    
+    Returns:
+        Dict with keys 'teds', 'rms', and 'icdar_score' (average of TEDS and RMS, [0, 1]).
+    """
+    from .table_parser import parse_all_markdown_tables
+
+    teds = compute_teds(pred_md, target_md)
+    pred_dfs = parse_all_markdown_tables(pred_md)
+    target_dfs = parse_all_markdown_tables(target_md)
+    rms = compute_icdar_rms(pred_dfs, target_dfs, rel_tol=rel_tol)
+    composite = 0.5 * (teds + rms)
+
+    return {
+        "teds": teds,
+        "rms": rms,
+        "icdar_score": composite,
+    }
+

@@ -18,9 +18,17 @@ logger = setup_logger(__name__)
 class LazyMultimodalDataset(Dataset):
     """Dataset wrapper that formats multimodal messages on demand."""
 
-    def __init__(self, dataset: Any, max_table_chars: Optional[int] = None):
+    def __init__(
+        self,
+        dataset: Any,
+        max_table_chars: Optional[int] = None,
+        min_pixels: Optional[int] = None,
+        max_pixels: Optional[int] = None,
+    ):
         self.dataset = dataset
         self.max_table_chars = max_table_chars
+        self.min_pixels = min_pixels
+        self.max_pixels = max_pixels
 
     def __len__(self) -> int:
         return len(self.dataset)
@@ -29,11 +37,15 @@ class LazyMultimodalDataset(Dataset):
         item = self.dataset[idx]
         table = item["table"]
         if self.max_table_chars and len(table) > self.max_table_chars:
-            table = table[:self.max_table_chars]
+            cut = table[: self.max_table_chars]
+            last_nl = cut.rfind("\n")
+            table = cut[:last_nl] if last_nl > 0 else cut
         msgs = format_qwen_vl_conversation(
             image=item["image"],
             target_table=table,
-            system_prompt=item["system_prompt"]
+            system_prompt=item["system_prompt"],
+            min_pixels=self.min_pixels,
+            max_pixels=self.max_pixels,
         )
         return {"messages": msgs}
 
@@ -82,6 +94,36 @@ def build_training_arguments(cfg: Dict[str, Any]) -> TrainingArguments:
     )
 
 
+from .icdar_loss import ICDARMetricLoss
+
+
+class ICDARTrainer(Trainer):
+    """Custom Hugging Face Trainer that integrates ICDAR Metric Loss (SCST / Token-Weighted)."""
+
+    def __init__(self, *args, icdar_loss_module: Optional[ICDARMetricLoss] = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.icdar_loss_module = icdar_loss_module
+
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        if self.icdar_loss_module is None:
+            # Handle newer transformers versions supporting num_items_in_batch
+            kwargs = {}
+            if num_items_in_batch is not None:
+                kwargs["num_items_in_batch"] = num_items_in_batch
+            return super().compute_loss(model, inputs, return_outputs=return_outputs, **kwargs)
+
+        outputs = model(**inputs)
+        loss, loss_stats = self.icdar_loss_module(model, inputs, outputs=outputs, sft_loss=outputs.loss)
+
+
+        if self.state.global_step % max(1, self.args.logging_steps) == 0:
+            for k, v in loss_stats.items():
+                if isinstance(v, (int, float)):
+                    self.log({f"train/{k}": v})
+
+        return (loss, outputs) if return_outputs else loss
+
+
 class SciImageTableTrainer:
     """Orchestrator for fine-tuning VLM on scientific table extraction."""
 
@@ -99,26 +141,100 @@ class SciImageTableTrainer:
         self.eval_dataset = eval_dataset
         self.cfg = cfg
         self.training_args = build_training_arguments(cfg)
+        if self.eval_dataset is None:
+            self.training_args.eval_strategy = "no"
         self.data_collator = QwenVLDataCollator(processor=self.processor)
+
+        # Build ICDAR metric loss module if configured
+        t_cfg = cfg.get("training", {})
+        loss_type = t_cfg.get("loss_type", "ce")
+        if loss_type in ("scst", "token_weighted", "hybrid", "icdar_metric"):
+            m_cfg = t_cfg.get("metric_loss", {})
+            actual_type = "scst" if loss_type == "icdar_metric" else loss_type
+            vocab_sz = getattr(getattr(self.model, "config", None), "vocab_size", None)
+            reward_mode = m_cfg.get("reward_mode", "gpu_tensor")
+            focal_gamma = float(m_cfg.get("focal_gamma", 0.0))
+            self.icdar_loss_module = ICDARMetricLoss(
+                processor=self.processor,
+                loss_type=actual_type,
+                lambda_metric=m_cfg.get("lambda_metric", 0.3),
+                rel_tol=m_cfg.get("rel_tol", 0.05),
+                near_tol=m_cfg.get("near_tol", 0.01),
+                min_near_weight=m_cfg.get("min_near_weight", 0.20),
+                temperature=m_cfg.get("temperature", 0.7),
+                max_gen_tokens=m_cfg.get("max_gen_tokens", 512),
+                numeric_weight=m_cfg.get("numeric_weight", 4.0),
+                structural_weight=m_cfg.get("structural_weight", 4.5),
+                header_weight=m_cfg.get("header_weight", 6.0),
+                text_weight=m_cfg.get("text_weight", 2.5),
+                count_penalty_weight=m_cfg.get("count_penalty_weight", 2.0),
+                table_count_penalty_weight=m_cfg.get("table_count_penalty_weight", 3.5),
+                col_count_penalty_weight=m_cfg.get("col_count_penalty_weight", 3.5),
+                soft_digit_weight=m_cfg.get("soft_digit_weight", 0.25),
+                reward_mode=reward_mode,
+                focal_gamma=focal_gamma,
+                vocab_size=vocab_sz,
+            )
+            logger.info(
+                f"Initialized ICDARMetricLoss (type={actual_type}, text_w={m_cfg.get('text_weight', 2.5)}, "
+                f"struct_w={m_cfg.get('structural_weight', 4.5)}, header_w={m_cfg.get('header_weight', 6.0)}, "
+                f"col_penalty={m_cfg.get('col_count_penalty_weight', 3.5)})"
+            )
+            if hasattr(self.icdar_loss_module, "weighted_module") and self.icdar_loss_module.weighted_module is not None:
+                w_mod = self.icdar_loss_module.weighted_module
+                weights = getattr(w_mod, "token_weights", None)
+                if weights is not None:
+                    model_dev = next(self.model.parameters()).device
+                    weights = weights.to(model_dev)
+                    w_mod = w_mod.to(model_dev)
+                    for target_obj in (
+                        self.model,
+                        getattr(self.model, "base_model", None),
+                        getattr(getattr(self.model, "base_model", None), "model", None),
+                    ):
+                        if target_obj is not None:
+                            setattr(target_obj, "token_weights", weights)
+                            setattr(target_obj, "focal_gamma", focal_gamma)
+                            setattr(target_obj, "weighted_loss_module", w_mod)
+        else:
+            self.icdar_loss_module = None
 
     def train(self):
         """Executes model training."""
         logger.info("Initializing lazy multimodal datasets...")
-        max_table_chars = self.cfg.get("data", {}).get("max_table_chars", 1500)
-        train_formatted = LazyMultimodalDataset(self.train_dataset, max_table_chars=max_table_chars)
+        data_cfg = self.cfg.get("data", {})
+        max_table_chars = data_cfg.get("max_table_chars", 2500)
+        min_pixels = data_cfg.get("min_pixels")
+        max_pixels = data_cfg.get("max_pixels")
+        train_formatted = LazyMultimodalDataset(
+            self.train_dataset,
+            max_table_chars=max_table_chars,
+            min_pixels=min_pixels,
+            max_pixels=max_pixels,
+        )
         eval_formatted = (
-            LazyMultimodalDataset(self.eval_dataset, max_table_chars=max_table_chars)
+            LazyMultimodalDataset(
+                self.eval_dataset,
+                max_table_chars=max_table_chars,
+                min_pixels=min_pixels,
+                max_pixels=max_pixels,
+            )
             if self.eval_dataset is not None
             else None
         )
 
-        trainer = Trainer(
-            model=self.model,
-            args=self.training_args,
-            train_dataset=train_formatted,
-            eval_dataset=eval_formatted,
-            data_collator=self.data_collator,
-        )
+        trainer_cls = ICDARTrainer if self.icdar_loss_module is not None else Trainer
+        trainer_kwargs = {
+            "model": self.model,
+            "args": self.training_args,
+            "train_dataset": train_formatted,
+            "eval_dataset": eval_formatted,
+            "data_collator": self.data_collator,
+        }
+        if self.icdar_loss_module is not None:
+            trainer_kwargs["icdar_loss_module"] = self.icdar_loss_module
+
+        trainer = trainer_cls(**trainer_kwargs)
 
         logger.info("Starting training loop...")
         train_result = trainer.train()

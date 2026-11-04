@@ -1,0 +1,33 @@
+#!/bin/bash
+#SBATCH --job-name=tr-qwen3-4b
+#SBATCH --partition=dev
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=26G
+#SBATCH --output=logs/slurm_train_qwen3_4b_%j.out
+#SBATCH --error=logs/slurm_train_qwen3_4b_%j.err
+#SBATCH --time=24:00:00
+
+set -euo pipefail
+cd /home/lucas.ocunha/sci-image-markdown
+
+export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True"
+export PYTHONUNBUFFERED=1
+export PYTHONPATH=.
+
+mkdir -p /media/ssd2/datasets/sci-image-markdown-data/outputs/qwen3_vl_4b_icdar_loss
+mkdir -p /media/ssd2/datasets/sci-image-markdown-data/outputs/eval_results/qwen3_vl_4b_icdar_loss
+mkdir -p logs
+
+echo "=== [1/2] Fine-Tuning Qwen3-VL-4B-Instruct (Custom ICDAR Loss v2) ==="
+.venv/bin/python -u train.py --config configs/training/train_qwen3_vl_4b.yaml 2>&1 | tee logs/train_qwen3_vl_4b.log
+
+echo "=== [2/2] Running Evaluation on Test Set (373 samples) ==="
+.venv/bin/python -u evaluate.py \
+  --config configs/training/train_qwen3_vl_4b.yaml \
+  --adapter-path /media/ssd2/datasets/sci-image-markdown-data/outputs/qwen3_vl_4b_icdar_loss/final_adapter \
+  --test-file data/processed/test.jsonl \
+  --output-report /media/ssd2/datasets/sci-image-markdown-data/outputs/eval_results/qwen3_vl_4b_icdar_loss/test_report.json \
+  --save-predictions /media/ssd2/datasets/sci-image-markdown-data/outputs/eval_results/qwen3_vl_4b_icdar_loss/test_predictions.jsonl 2>&1 | tee logs/eval_qwen3_vl_4b.log
+
+echo "=== Qwen3-VL-4B-Instruct Pipeline Completed Successfully ==="

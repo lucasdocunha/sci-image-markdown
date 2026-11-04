@@ -3,7 +3,7 @@ model:
   model_type: "qwen2_5_vl"
   trust_remote_code: true
   torch_dtype: "bfloat16"
-  attn_implementation: "flash_attention_2"
+  attn_implementation: "sdpa"
   use_cache: false
 
 peft:
