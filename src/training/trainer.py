@@ -33,7 +33,8 @@ class LazyMultimodalDataset(Dataset):
         msgs = format_qwen_vl_conversation(
             image=item["image"],
             target_table=table,
-            system_prompt=item["system_prompt"]
+            system_prompt=item["system_prompt"],
+            instruction=item.get("instruction"),
         )
         return {"messages": msgs}
 

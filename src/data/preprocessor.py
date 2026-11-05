@@ -9,7 +9,8 @@ from PIL import Image
 def format_qwen_vl_conversation(
     image: Image.Image,
     target_table: Optional[str] = None,
-    system_prompt: str = "You are an expert scientific figure analyzer. Extract the plotted quantitative data into a clean Markdown table."
+    system_prompt: str = "You are an expert scientific figure analyzer. Extract the plotted quantitative data into a clean Markdown table.",
+    instruction: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Formats an image and optional target into Qwen2.5-VL chat template format."""
     messages = [
@@ -21,7 +22,7 @@ def format_qwen_vl_conversation(
             "role": "user",
             "content": [
                 {"type": "image", "image": image},
-                {"type": "text", "text": "Extract all numerical data points from this scientific figure panel into a Markdown table with clear column headers."}
+                {"type": "text", "text": instruction or "Extract all numerical data points from this scientific figure panel into a Markdown table with clear column headers."}
             ]
         }
     ]

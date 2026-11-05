@@ -77,5 +77,6 @@ class SciImageTableDataset(Dataset):
             "image_path": image_path,
             "table": markdown_table,
             "system_prompt": self.system_prompt,
+            "instruction": item.get("instruction"),
             "metadata": metadata,
         }

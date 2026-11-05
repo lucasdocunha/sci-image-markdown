@@ -1,0 +1,10 @@
+# Override for configs/default.yaml: 723 real + 723 synthetic + 723 structure-only copies of the real figures.
+# Same settings as train_qwen2_5_vl_3b_synth.yaml, so the structure copies are the only difference.
+experiment_name: "qwen2_5_vl_3b_synth_structure"
+
+data:
+  train_file: "data/synthetic_723/train_structure.jsonl"
+
+training:
+  output_dir: "outputs/checkpoints_synth_structure"
+  use_liger_kernel: true  # same as the baseline override; avoids OOM on 6 GB GPUs
