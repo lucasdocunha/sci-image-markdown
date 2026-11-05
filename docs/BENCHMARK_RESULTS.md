@@ -37,7 +37,8 @@ Comparação direta dos competidores do artigo oficial ([arXiv:2607.26848](https
 | Posição | Modelo / Equipe | Abordagem Principal | Backbone | Parâmetros | VTR (Tabelas Válidas) | RMS (Mapeamento Numérico) | TEDS (Similaridade Estrutural) | Score Final ICDAR $\frac{1}{2}(\text{RMS}+\text{TEDS})$ | Hardware / VRAM |
 | :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | 🥇 **1º** | **`LightOnOCR-3-4B (Ours)`** | **QLoRA + Loss v3 (TEDS-Topology)** | **LightOnOCR-3-4B** | **~3.4B** | **`98.39%`** | **`62.12`** | **`42.52`** | **`52.32`** 🏆 | **~8 GB VRAM (GPU única)** |
-| 🥈 **2º** | **`sci-image-markdown (7B)`** | **QLoRA + Loss v2** | **Qwen2.5-VL-7B** | **~7B** | **`99.73%`** | **`60.26`** | **`43.96`** | **`52.11`** 🎯 | **~10 GB VRAM (GPU única)** |
+| 🥈 **2º** | **`LightOnOCR-3-4B (Synth15)`** | **QLoRA + Loss v3 + 15% Pares Sintéticos** | **LightOnOCR-3-4B** | **~3.4B** | **`99.20%`** | **`60.76`** | **`42.68`** | **`51.72`** 🎯 | **~8.5 GB VRAM (GPU única)** |
+| 🥉 **3º** | **`sci-image-markdown (7B)`** | **QLoRA + Loss v2** | **Qwen2.5-VL-7B** | **~7B** | **`99.73%`** | **`60.26`** | **`43.96`** | **`52.11`** | **~10 GB VRAM (GPU única)** |
 | 🥉 **3º** | **`sci-image-markdown (3B)`** | **QLoRA + Loss v1** | **Qwen2.5-VL-3B** | **~3B** | **`99.73%`** | **`58.30`** | **`40.68`** | **`49.49`** | **< 8 GB VRAM (GPU única)** |
 | **4º** | **`Qwen3-VL-8B (Ours)`** | **QLoRA + Loss v3 (TEDS-Topology)** | **Qwen3-VL-8B** | **~8B** | **`99.73%`** | **`60.76`** | **`36.68`** | **`48.72`** 🚀 | **~16 GB VRAM (GPU única)** |
 | **5º** | **`TeleOCR-VL`** | Ensemble Heterogêneo + Sintéticos | Multi-VLM | Multi | ~99.0% | `17.23` | **`66.39`** | **`41.81`** | Cluster Multi-GPU |

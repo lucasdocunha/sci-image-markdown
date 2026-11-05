@@ -1,21 +1,22 @@
 #!/bin/bash
 #SBATCH --job-name=synth15
-#SBATCH --partition=gpu            # TODO: nome da partição com GPU no seu cluster
-#SBATCH --gres=gpu:1               # 1 GPU (QLoRA 4-bit cabe em <7 GB de VRAM)
+#SBATCH --partition=dev
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=32G
-#SBATCH --time=12:00:00            # 2 treinos x 3 épocas + 2 avaliações; ajuste se a fila exigir
+#SBATCH --mem=26G
+#SBATCH --time=12:00:00
 #SBATCH --output=outputs/slurm-%x-%j.out
 #SBATCH --error=outputs/slurm-%x-%j.out
-# Uncomment if your cluster requires an account:
-##SBATCH --account=TODO_SUA_CONTA
 
 # Submit from the repo root:  sbatch run_synth_slurm.sh
-# outputs/ must exist before submission (SLURM does not create the log directory).
 set -euo pipefail
 
-REPO=/home/lucas/masters/sci-image-markdown
+REPO=/home/lucas.ocunha/sci-image-markdown
 cd "$REPO"
+mkdir -p outputs logs
+
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export PYTHONUNBUFFERED=1
 
 echo "Job ${SLURM_JOB_ID} on $(hostname) started at $(date '+%F %T')"
 echo "GPU: $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null || echo 'nvidia-smi indisponível')"

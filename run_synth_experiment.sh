@@ -3,7 +3,8 @@
 # Same seed, hyperparameters, and test set (data/processed/test.jsonl) for both runs.
 set -euo pipefail
 
-cd /home/lucas/masters/sci-image-markdown
+cd /home/lucas.ocunha/sci-image-markdown
+mkdir -p outputs logs
 
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export PYTHONUNBUFFERED=1

@@ -89,6 +89,7 @@ def build_training_arguments(cfg: Dict[str, Any]) -> TrainingArguments:
         dataloader_num_workers=t_cfg.get("dataloader_num_workers", 2),
         dataloader_pin_memory=False,
         gradient_checkpointing=t_cfg.get("gradient_checkpointing", True),
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         report_to=t_cfg.get("report_to", "none"),
         remove_unused_columns=False,
     )

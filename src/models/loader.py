@@ -155,6 +155,14 @@ def load_model_and_processor(
         model = get_peft_model(model, peft_config)
         model.print_trainable_parameters()
 
+    # Ensure lm_head matches torch_dtype (float16/bfloat16) to avoid 1.16GB float32 weights
+    # and prevent PyTorch autocast from creating dynamic 594MB temporary copies during forward chunks
+    if hasattr(model, "lm_head"):
+        model.lm_head = model.lm_head.to(torch_dtype)
+    base_m = getattr(model, "base_model", None)
+    if base_m is not None and hasattr(base_m, "model") and hasattr(base_m.model, "lm_head"):
+        base_m.model.lm_head = base_m.model.lm_head.to(torch_dtype)
+
     # Apply selective memory-efficient forward pass to prevent OOM on large vocabulary logits
     if is_training:
         target_base = getattr(model, "base_model", None)
@@ -246,14 +254,15 @@ def _memory_efficient_qwen2_vl_forward(
             num_items_in_batch = kwargs.get("num_items_in_batch", None)
             reduction = "sum" if num_items_in_batch is not None else "mean"
 
-            chunk_size = 16
+            chunk_size = 8
             ce_chunks = []
             pred_id_chunks = []
             digit_logit_chunks = []
             digit_ids = getattr(weighted_loss_module, "digit_ids", None) if weighted_loss_module is not None else None
+            lm_dtype = next(self.lm_head.parameters()).dtype if hasattr(self.lm_head, "parameters") else hidden_states.dtype
 
             for chunk_h, chunk_y in zip(valid_hidden.split(chunk_size), valid_labels.split(chunk_size)):
-                chunk_logits = self.lm_head(chunk_h).float()
+                chunk_logits = self.lm_head(chunk_h.to(lm_dtype)).float()
                 with torch.no_grad():
                     pred_id_chunks.append(chunk_logits.argmax(dim=-1))
                 ce_chunk = nn.functional.cross_entropy(chunk_logits, chunk_y, reduction="none")
