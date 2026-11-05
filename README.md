@@ -206,7 +206,7 @@ A biblioteca em [`src/metrics/`](src/metrics/) avalia a extração em duas frent
   $$\text{Edit Sim} = 1 - \frac{\text{Levenshtein}(S_{\text{pred}}, S_{\text{true}})}{\max(|S_{\text{pred}}|, |S_{\text{true}}|)}$$
 
 ### 2. Fidelidade Numérica por Casamento Bipartido
-Os números extraídos da tabela predita e da tabela real são submetidos a um casamento bipartido guloso com tolerância relativa máxima de **$5\%$** ($\text{rel\_tol} = 0.05$):
+Os números extraídos da tabela predita e da tabela real são submetidos a um casamento bipartido guloso com tolerância relativa máxima de **$5\%$** (`rel_tol = 0.05`):
 $$\text{Match se: } \text{RNE}(p, t) = \frac{|p - t|}{\max(|t|, 10^{-7})} \le 0.05$$
 - **Cell Precision:** $TP / |\text{Pred}|$
 - **Cell Recall:** $TP / |\text{Target}|$
