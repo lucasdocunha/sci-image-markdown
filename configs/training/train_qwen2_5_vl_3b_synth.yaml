@@ -1,0 +1,10 @@
+# Override for configs/default.yaml: 723 real + 723 synthetic (multi_series share 0.5).
+# Only the training data and output dir change, so the run is comparable to the default baseline.
+experiment_name: "qwen2_5_vl_3b_synth"
+
+data:
+  train_file: "data/synthetic_723/train_combined.jsonl"
+
+training:
+  output_dir: "outputs/checkpoints_synth"
+  use_liger_kernel: true  # same as the baseline override; avoids OOM on 6 GB GPUs
