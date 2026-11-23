@@ -78,3 +78,8 @@ class QwenVLTableExtractor:
         )[0]
 
         return output_text.strip()
+
+
+# Generic alias for multi-VLM architectures
+VLMTableExtractor = QwenVLTableExtractor
+

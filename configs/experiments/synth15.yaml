@@ -1,0 +1,10 @@
+# Treatment run: real train split + ~15% synthetic two-table samples (built by make_mixed_train.py).
+experiment_name: "qwen2_5_vl_3b_qlora_synth15"
+
+data:
+  train_file: "data/processed/train_synth15.jsonl"
+  # Image paths in the mixed file are relative to data/processed/, so no extra image folder is needed.
+  image_folder: null
+
+training:
+  output_dir: "outputs/checkpoints/synth15"

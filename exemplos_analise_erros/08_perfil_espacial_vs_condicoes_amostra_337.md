@@ -53,13 +53,3 @@
 
 **O que aconteceu:**
 O Ground Truth compilou as condições globais de processo (Before etch vs After ALE: 87 vs 40 nm), enquanto o modelo gerou uma tabela amostrando as posições espaciais do wafer de -150 a 150 mm.
-
-**Causa Raiz Técnica:**
-O gráfico exibia a espessura ao longo do diâmetro do wafer, mas a legenda enfatizava o resultado médio global antes e depois do processo. O modelo focou na variação espacial no eixo X ("Wafer Cross-Section (mm)") em vez das duas condições discretas que os autores do benchmark definiram como alvo.
-
----
-
-## 🎯 Como Direcionar o Modelo para Corrigir este Caso
-
-- **Prompt**: "When figures demonstrate a process shift (e.g. before/after treatment), extract both the categorical condition rows and the key baseline values stated in the legend/axis."
-- **Alinhamento de Tarefa**: Benchmarkings como o Sci-ImageMiner possuem anotações com diferentes filosofias (algumas amostram a curva, outras resumem a legenda). Instruções de prompt guiadas por classes de figuras mitigam essa disparidade.

@@ -139,14 +139,3 @@
 
 **O que aconteceu:**
 O modelo ignorou os dados experimentais sutis da microbalança de quartzo e gerou uma rampa linear perfeitamente sintética (0->0, 100->100, 200->200... 700->700).
-
-**Causa Raiz Técnica:**
-A figura apresenta ruído experimental e pequenos degraus de massa por ciclo. Na ausência de pontos marcadores nítidos com rótulos de texto diretos sobre a curva, o modelo caiu em um modo de mínimo esforço (colapso de variância), gerando uma sequência aritmética trivial "0, 100, 200, 300...".
-
----
-
-## 🎯 Como Direcionar o Modelo para Corrigir este Caso
-
-- **Prompt**: Adicionar comando estrito: "Never generate regular dummy arithmetic progressions (e.g. 0, 100, 200...) if not explicitly matching the visual data points."
-- **Loss / Treinamento**: Aumentar a penalização de predições com derivada constante / interpolações artificiais quando os dados reais têm variações dinâmicas.
-- **Pós-Processamento**: Detectar sequências onde x == y ou dy/dx constante suspeito em curvas cinéticas e acionar re-amostragem com temperatura de decodificação menor (greedy search pura).

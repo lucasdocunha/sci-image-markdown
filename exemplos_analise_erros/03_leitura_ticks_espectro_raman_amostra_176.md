@@ -58,14 +58,3 @@
 
 **O que aconteceu:**
 O modelo leu os rótulos de grade (1200, 1600, 2800 cm⁻¹) em vez de ancorar nas bandas físicas do grafeno (D em 1350, G em 1580, 2D em 2700), além de extrapolar a amplitude para 2.5 (a escala máxima era 1.0). Teve RMSE de 50.99.
-
-**Causa Raiz Técnica:**
-O modelo focou sua atenção nos números impressos nos eixos cartesianos (ticks de 400 em 400 cm⁻¹) em vez dos máximos locais das bandas de vibração física. Além disso, alucinou a escala vertical, colocando intensidades de até 2.5 em um eixo normalizado de 0.0 a 1.0.
-
----
-
-## 🎯 Como Direcionar o Modelo para Corrigir este Caso
-
-- **Prompt**: "For Raman spectra, identify prominent vibrational modes (e.g., D, G, 2D bands) and strictly observe axis limits when estimating normalized intensities."
-- **Injeção de Metadados**: Se a legenda indicar o tipo de gráfico (Raman), fornecer dicas no prompt do sistema sobre a faixa de eixos esperada.
-- **Resolução Original**: Forçar o modelo a rodar na resolução nativa (sem downsampling para 256px) para que os números dos ticks do eixo Y fiquem perfeitamente nítidos.

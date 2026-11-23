@@ -37,7 +37,9 @@ class LazyMultimodalDataset(Dataset):
         item = self.dataset[idx]
         table = item["table"]
         if self.max_table_chars and len(table) > self.max_table_chars:
-            table = table[:self.max_table_chars]
+            cut = table[: self.max_table_chars]
+            last_nl = cut.rfind("\n")
+            table = cut[:last_nl] if last_nl > 0 else cut
         msgs = format_qwen_vl_conversation(
             image=item["image"],
             target_table=table,
@@ -87,6 +89,7 @@ def build_training_arguments(cfg: Dict[str, Any]) -> TrainingArguments:
         dataloader_num_workers=t_cfg.get("dataloader_num_workers", 2),
         dataloader_pin_memory=False,
         gradient_checkpointing=t_cfg.get("gradient_checkpointing", True),
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         report_to=t_cfg.get("report_to", "none"),
         remove_unused_columns=False,
     )
@@ -157,35 +160,43 @@ class SciImageTableTrainer:
                 loss_type=actual_type,
                 lambda_metric=m_cfg.get("lambda_metric", 0.3),
                 rel_tol=m_cfg.get("rel_tol", 0.05),
+                near_tol=m_cfg.get("near_tol", 0.01),
+                min_near_weight=m_cfg.get("min_near_weight", 0.20),
                 temperature=m_cfg.get("temperature", 0.7),
                 max_gen_tokens=m_cfg.get("max_gen_tokens", 512),
-                numeric_weight=m_cfg.get("numeric_weight", 3.0),
-                structural_weight=m_cfg.get("structural_weight", 2.0),
+                numeric_weight=m_cfg.get("numeric_weight", 4.0),
+                structural_weight=m_cfg.get("structural_weight", 4.5),
+                header_weight=m_cfg.get("header_weight", 6.0),
+                text_weight=m_cfg.get("text_weight", 2.5),
+                count_penalty_weight=m_cfg.get("count_penalty_weight", 2.0),
+                table_count_penalty_weight=m_cfg.get("table_count_penalty_weight", 3.5),
+                col_count_penalty_weight=m_cfg.get("col_count_penalty_weight", 3.5),
+                soft_digit_weight=m_cfg.get("soft_digit_weight", 0.25),
                 reward_mode=reward_mode,
                 focal_gamma=focal_gamma,
                 vocab_size=vocab_sz,
             )
-            logger.info(f"Initialized ICDARMetricLoss (type={actual_type}, lambda={m_cfg.get('lambda_metric', 0.3)}, reward_mode={reward_mode})")
+            logger.info(
+                f"Initialized ICDARMetricLoss (type={actual_type}, text_w={m_cfg.get('text_weight', 2.5)}, "
+                f"struct_w={m_cfg.get('structural_weight', 4.5)}, header_w={m_cfg.get('header_weight', 6.0)}, "
+                f"col_penalty={m_cfg.get('col_count_penalty_weight', 3.5)})"
+            )
             if hasattr(self.icdar_loss_module, "weighted_module") and self.icdar_loss_module.weighted_module is not None:
-                weights = getattr(self.icdar_loss_module.weighted_module, "token_weights", None)
+                w_mod = self.icdar_loss_module.weighted_module
+                weights = getattr(w_mod, "token_weights", None)
                 if weights is not None:
                     model_dev = next(self.model.parameters()).device
                     weights = weights.to(model_dev)
-                    setattr(self.model, "token_weights", weights)
-                    setattr(self.model, "focal_gamma", focal_gamma)
-                    if hasattr(self.model, "base_model"):
-                        setattr(self.model.base_model, "token_weights", weights)
-                        setattr(self.model.base_model, "focal_gamma", focal_gamma)
-                        if hasattr(self.model.base_model, "model"):
-                            setattr(self.model.base_model.model, "token_weights", weights)
-                            setattr(self.model.base_model.model, "focal_gamma", focal_gamma)
-
-                    if hasattr(self.model, "base_model"):
-                        setattr(self.model.base_model, "token_weights", weights)
-                        setattr(self.model.base_model, "focal_gamma", focal_gamma)
-                        if hasattr(self.model.base_model, "model"):
-                            setattr(self.model.base_model.model, "token_weights", weights)
-                            setattr(self.model.base_model.model, "focal_gamma", focal_gamma)
+                    w_mod = w_mod.to(model_dev)
+                    for target_obj in (
+                        self.model,
+                        getattr(self.model, "base_model", None),
+                        getattr(getattr(self.model, "base_model", None), "model", None),
+                    ):
+                        if target_obj is not None:
+                            setattr(target_obj, "token_weights", weights)
+                            setattr(target_obj, "focal_gamma", focal_gamma)
+                            setattr(target_obj, "weighted_loss_module", w_mod)
         else:
             self.icdar_loss_module = None
 
@@ -193,7 +204,7 @@ class SciImageTableTrainer:
         """Executes model training."""
         logger.info("Initializing lazy multimodal datasets...")
         data_cfg = self.cfg.get("data", {})
-        max_table_chars = data_cfg.get("max_table_chars", 1500)
+        max_table_chars = data_cfg.get("max_table_chars", 2500)
         min_pixels = data_cfg.get("min_pixels")
         max_pixels = data_cfg.get("max_pixels")
         train_formatted = LazyMultimodalDataset(

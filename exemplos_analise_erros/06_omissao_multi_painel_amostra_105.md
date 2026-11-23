@@ -69,11 +69,3 @@ A figura continha dois painéis lado a lado (Espectro OES no Painel A e Evoluç�
 
 **Causa Raiz Técnica:**
 O modelo foi treinado majoritariamente em imagens com tabela única. Quando encontrou uma figura composta com sub-gráficos (a) e (b), interpretou a conclusão da tabela do primeiro gráfico como condição de parada (<|im_end|>).
-
----
-
-## 🎯 Como Direcionar o Modelo para Corrigir este Caso
-
-- **Prompt**: "If the scientific image contains multiple subplots (e.g., panel a, panel b, or side-by-side graphs), you MUST extract a separate markdown table for EACH panel. Do not stop after the first panel."
-- **Fine-Tuning com Multi-Painéis**: Adicionar peso especial ou criar amostras sintéticas onde múltiplos painéis exigem múltiplas tabelas separadas por dupla quebra de linha.
-- **Detecção Prévia de Layout**: Se a imagem tiver proporção muito larga (aspect ratio > 2.0), injetar aviso no prompt de que há mais de um subplot presente.

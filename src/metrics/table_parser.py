@@ -77,12 +77,56 @@ def sanitize_cell_text(text: str) -> str:
     return s.strip()
 
 
+def html_table_to_markdown(html_text: str) -> str:
+    """Converts an HTML table (<table>...</table>) to a standard Markdown table."""
+    headers = re.findall(r'<th[^>]*>(.*?)</th>', html_text, re.DOTALL | re.IGNORECASE)
+    if not headers:
+        first_row = re.search(r'<tr[^>]*>(.*?)</tr>', html_text, re.DOTALL | re.IGNORECASE)
+        if first_row:
+            headers = re.findall(r'<td[^>]*>(.*?)</td>', first_row.group(1), re.DOTALL | re.IGNORECASE)
+
+    tbody_match = re.search(r'<tbody[^>]*>(.*?)</tbody>', html_text, re.DOTALL | re.IGNORECASE)
+    rows_text = tbody_match.group(1) if tbody_match else html_text
+
+    rows = []
+    for tr in re.findall(r'<tr[^>]*>(.*?)</tr>', rows_text, re.DOTALL | re.IGNORECASE):
+        cells = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL | re.IGNORECASE)
+        if cells:
+            clean_cells = [re.sub(r'<[^>]+>', '', c).strip() for c in cells]
+            rows.append(clean_cells)
+
+    if not headers and rows:
+        headers = [f"Col_{i}" for i in range(len(rows[0]))]
+    clean_headers = [re.sub(r'<[^>]+>', '', h).strip() for h in headers]
+
+    if not clean_headers and not rows:
+        return ""
+
+    num_cols = max(len(clean_headers), max((len(r) for r in rows), default=0))
+    clean_headers += [""] * (num_cols - len(clean_headers))
+    header_line = "| " + " | ".join(clean_headers) + " |"
+    sep_line = "| " + " | ".join(["---"] * num_cols) + " |"
+    row_lines = []
+    for r in rows:
+        r += [""] * (num_cols - len(r))
+        row_lines.append("| " + " | ".join(r) + " |")
+    return "\n".join([header_line, sep_line] + row_lines)
+
+
 def extract_all_markdown_table_blocks(text: str) -> List[str]:
-    """Extracts all markdown table sections from generated or ground-truth text.
+    """Extracts all markdown or HTML table sections from generated or ground-truth text.
     Handles multiple tables (e.g. multi-panel figures separated by text or blank lines).
     """
     if not text or not isinstance(text, str):
         return []
+
+    # Check for HTML table blocks first (e.g. models preferring <table> output)
+    if "<table" in text.lower():
+        html_blocks = re.findall(r"<table[\s\S]*?</table>", text, flags=re.IGNORECASE)
+        if html_blocks:
+            md_tables = [html_table_to_markdown(hb) for hb in html_blocks if html_table_to_markdown(hb)]
+            if md_tables:
+                return md_tables
 
     # Strip code fences if present
     code_block_match = re.search(r"```(?:markdown|table)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)

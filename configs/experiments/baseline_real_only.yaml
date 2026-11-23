@@ -1,0 +1,5 @@
+# Control run: only the real train split (data/processed/train.jsonl), default hyperparameters.
+experiment_name: "qwen2_5_vl_3b_qlora_baseline"
+
+training:
+  output_dir: "outputs/checkpoints/baseline"

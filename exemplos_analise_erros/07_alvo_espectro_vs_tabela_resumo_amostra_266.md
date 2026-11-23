@@ -92,13 +92,3 @@
 
 **O que aconteceu:**
 A imagem XPS continha uma tabela sobreposta com porcentagens de composição (Hf-O, etc.). O modelo tentou ler o espectro contínuo gerando faixas vazias (-), ignorando a tabela explícita com os dados de interesse.
-
-**Causa Raiz Técnica:**
-Figuras científicas frequentemente contêm mini-tabelas inseridas no canto do gráfico sintetizando a integração de área dos picos (ex: Hf-O % = 87.63). O modelo priorizou o fundo visual (o espectro de binding energy) e gerou células nulas em vez de transcrever os números consolidados do encarte.
-
----
-
-## 🎯 Como Direcionar o Modelo para Corrigir este Caso
-
-- **Prompt**: "If the figure includes an inset table, summary box, or elemental composition breakdown, prioritize or include these summarized values as key columns."
-- **Multi-modal OCR**: O Vision Encoder precisa ser incentivado a ler caixas de texto estruturadas embutidas no plot antes de tentar digitalizar a linha contínua de fundo.

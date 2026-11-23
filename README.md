@@ -13,7 +13,7 @@
 **Framework de Pesquisa e Engenharia para Extração de Tabelas Numéricas a partir de Figuras Científicas em Markdown Estruturado.**  
 *Avaliado no benchmark oficial ICDAR 2026 / Sci-ImageMiner (Task 2: Scientific Figure to Data Table Extraction).*
 
-[📘 Detalhamento Técnico Completo](docs/detalhamento.md) • [📊 Resultados de Benchmark](docs/BENCHMARK_RESULTS.md) • [📓 Caderno Interativo (Jupyter)](detalhamento.ipynb) • [🌐 Modelo de Domínio](docs/CONTEXT.md)
+[📘 Detalhamento Técnico Completo](docs/detalhamento.md) • [📊 Resultados de Benchmark](docs/BENCHMARK_RESULTS.md) • [📐 Formatos Long vs. Wide](docs/FORMATOS_TABELA_LONG_VS_WIDE.md) • [📓 Caderno Interativo (Jupyter)](detalhamento.ipynb) • [🌐 Modelo de Domínio](docs/CONTEXT.md)
 
 </div>
 
@@ -222,11 +222,13 @@ Avaliação executada sobre as **373 figuras de teste independentes** do benchma
 
 | Posição / Modelo | Parâmetros | VTR (Tabelas Válidas) | Cell Recall ($\le 5\%$ tol.) | Cell RMSE | Score Final ICDAR | Requisito de Hardware |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| 🥇 **sci-image-markdown (7B - Ours)** | **~7B** | **`99.73%`** | **`60.43%`** 🚀 | **`1.2002`** | **`52.11`** 🏆 | **~10 GB VRAM (GPU única)** |
-| 🥈 **sci-image-markdown (3B - Ours)** | **~3B** | **`99.73%`** | **`58.46%`** | **`2.6786`** | **`49.49`** 🎯 | **< 8 GB VRAM (GPU única)** |
-| 🥉 **TeleOCR-VL** | Multi-VLM | ~99.0% | ~49.5% | ~1.05 | **41.81** | Cluster Multi-GPU |
-| 4º **VLMinators** | ~7B | ~98.8% | ~46.8% | ~1.15 | **40.80** | 16-24 GB VRAM |
-| 5º **Ricoh_SRCB** | ~7B-14B | ~98.0% | ~44.1% | ~1.30 | **38.67** | Multi-GPU |
+| 🥇 **LightOnOCR-3-4B (Ours - Novo Recorde)** | **~3.4B** | **`98.39%`** | **`59.99%`** | **`1.24e-3` (RNE)** | **`52.32`** 🏆 | **~8 GB VRAM (GPU única)** |
+| 🥈 **sci-image-markdown (7B - Ours)** | **~7B** | **`99.73%`** | **`60.43%`** 🚀 | **`1.2002`** | **`52.11`** 🎯 | **~10 GB VRAM (GPU única)** |
+| 🥉 **sci-image-markdown (3B - Ours)** | **~3B** | **`99.73%`** | **`58.46%`** | **`2.6786`** | **`49.49`** 🎯 | **< 8 GB VRAM (GPU única)** |
+| 4º **Qwen3-VL-8B (Ours)** | **~8B** | **`99.73%`** | **`59.01%`** | **`71.45`** | **`48.72`** 🚀 | **~16 GB VRAM (GPU única)** |
+| 5º **TeleOCR-VL** | Multi-VLM | ~99.0% | ~49.5% | ~1.05 | **41.81** | Cluster Multi-GPU |
+| 6º **VLMinators** | ~7B | ~98.8% | ~46.8% | ~1.15 | **40.80** | 16-24 GB VRAM |
+| 7º **Ricoh_SRCB** | ~7B-14B | ~98.0% | ~44.1% | ~1.30 | **38.67** | Multi-GPU |
 | 📌 **Baseline Oficial ICDAR** | ~8B | ~92.5% | ~40.2% | ~1.85 | **35.97** | ~16 GB VRAM |
 | ⚠️ **Modelo Base (Zero-Shot)** | ~3B | 88.74% | 35.78% | 2.6635 | **31.08** | < 8 GB VRAM |
 
@@ -298,6 +300,8 @@ sci-image-markdown/
 ├── docs/                      # Central de documentação
 │   ├── detalhamento.md        # Dissecação técnica profunda (loss, QLoRA, arquitetura)
 │   ├── BENCHMARK_RESULTS.md   # Relatório oficial de benchmark e SOTA
+│   ├── FORMATOS_TABELA_LONG_VS_WIDE.md # Estudo comparativo de formatos Largo (Wide) vs Longo (Tidy)
+│   ├── DIAGNOSTICO_ERROS_7B.md # Diagnóstico empírico dos modos de falha do benchmark
 │   ├── CONTEXT.md             # Glossário e contexto físico-químico ALD/ALE
 │   ├── AGENTS.md              # Workflows de agentes autônomos
 │   ├── adr/                   # Architecture Decision Records
