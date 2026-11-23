@@ -171,6 +171,12 @@ distribuição de complexidade dos dados processados (45% `easy`, 40% `medium` e
 duplicadas. Para gerar somente um nível, use `--difficulty hard`. O gerador não
 substitui um diretório não vazio sem `--overwrite`.
 
+Metade das amostras (`--multi-series-share 0.5`) vem da família paramétrica
+`multi_series`: eixos e unidades sorteados, de 2 a 6 séries com legenda sobre o
+mesmo X (regular ou irregular) e uma única tabela larga, com uma coluna por série.
+Ela mira o erro do modelo de perder séries ou quebrar um painel em uma tabela por
+série. Use `--multi-series-share 0` para gerar só o catálogo original.
+
 ### Degradação do dataset original
 
 O script `augment_images.py` usa Albumentations para criar cópias degradadas
