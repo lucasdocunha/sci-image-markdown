@@ -40,9 +40,9 @@ for cid, name, local_old in checkpoints:
     if s_path.exists():
         with open(s_path) as f:
             s = json.load(f)
-        weighted = f"{s.get('weighted', 0)*100:.2f}"
-        rms = f"{s.get('rms', 0)*100:.2f}"
-        teds = f"{s.get('teds', 0)*100:.2f}"
+        weighted = f"{s.get('weighted', 0):.2f}"
+        rms = f"{s.get('rms', 0):.2f}"
+        teds = f"{s.get('teds', 0):.2f}"
         n_panels = s.get('n_panels', 0)
         extra = s.get('extra_tables', 0)
     else:

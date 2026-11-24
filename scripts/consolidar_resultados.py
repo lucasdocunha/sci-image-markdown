@@ -69,9 +69,9 @@ def main():
                 "ID": cid,
                 "Local (antigo)": cp["local_target"],
                 "Local (re-executado)": f"{local_icdar*100:.2f}" if local_icdar is not None else "-",
-                "Oficial (weighted)": f"{weighted*100:.2f}",
-                "RMS oficial": f"{rms*100:.2f}",
-                "TEDS oficial": f"{teds*100:.2f}",
+                "Oficial (weighted)": f"{weighted:.2f}",
+                "RMS oficial": f"{rms:.2f}",
+                "TEDS oficial": f"{teds:.2f}",
                 "n_panels": n_panels,
                 "extra_tables": extra_tables,
                 "Status": "Concluído"

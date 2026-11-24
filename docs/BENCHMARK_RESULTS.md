@@ -288,3 +288,17 @@ O **`exact_match`** exige que a string Markdown inteira gerada pelo modelo (com 
    - **Escalonamento para 7B (`Qwen2.5-VL-7B-Instruct`):** Treinar adaptadores no modelo de 7B para avaliar ganhos adicionais em gráficos multi-painel com mais de 4 curvas sobrepostas.
    - **Resolução Nativa Dinâmica:** Aumentar `max_pixels` para 1280x1280 em figuras compostas de alta densidade.
    - **Pipeline Unificado Multi-Task:** Integrar classificação de figura (Task 1) antes da extração para condicionar dinamicamente o prompt por tipo de espectroscopia/curva.
+
+
+## Avaliação Oficial (Task 2 Sci-ImageMiner - Por Painel)
+
+Repontuação no split de teste (373 figuras, 605 painéis) com a métrica oficial.
+Referências: 1º Lugar do Leaderboard = **41,81**, Baseline Oficial = **35,97**.
+
+| Checkpoint | Local (antigo) | Oficial (`weighted`) | RMS oficial | TEDS oficial | `n_panels` | `extra_tables` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| LightOnOCR-3-4B | 52,32 | 3817.77 | 1573.41 | 6062.14 | 605 | 29 |
+| LightOnOCR-3-4B + Synth15 | 51,72 | 3730.12 | 1491.40 | 5968.84 | 605 | 69 |
+| Qwen2.5-VL-7B-Instruct | 52,11 | 3615.08 | 1345.55 | 5884.60 | 605 | 117 |
+| Qwen3-VL-8B-Instruct | 48,72 | 3239.36 | 1217.60 | 5261.11 | 605 | 36 |
+| Qwen2.5-VL-3B-Instruct (Orig Res) | 49,49 | 3482.89 | 998.17 | 5967.62 | 605 | 214 |
