@@ -28,6 +28,7 @@ console = Console()
 @click.option("--output-report", default="outputs/eval_results/report.json", help="Path to save evaluation JSON report.")
 @click.option("--save-predictions", default=None, help="Optional path to save generated predictions JSONL.")
 @click.option("--max-samples", default=None, type=int, help="Optional maximum number of samples to evaluate.")
+@click.option("--metadata", default=None, help="HF metadata.jsonl; gives the panel count per figure for data.panel_hint.")
 def main(
     config: str,
     model_config: str,
@@ -38,6 +39,7 @@ def main(
     output_report: str,
     save_predictions: str,
     max_samples: int,
+    metadata: str,
 ):
     """Runs full evaluation and prints domain table extraction metrics."""
     from tqdm import tqdm
@@ -57,6 +59,7 @@ def main(
         test_records = test_records[:max_samples]
         logger.info(f"Subsetting evaluation to first {len(test_records)} samples.")
     ground_truths = [r.get("table", r.get("markdown", "")) for r in test_records]
+    n_panels = {m["id"]: len(m.get("bbox") or []) for m in read_jsonl(metadata)} if metadata else {}
 
     pred_records = []
     if predictions_file:
@@ -96,7 +99,10 @@ def main(
                     resolved_path = img_path
 
                 try:
-                    res = predictor.predict_image(resolved_path)
+                    if rec.get("id") in n_panels:
+                        res = predictor.predict_image(resolved_path, n_panels=n_panels[rec["id"]])
+                    else:
+                        res = predictor.predict_image(resolved_path)
                     pred_table = res["markdown_table"]
                     raw_output = res["raw_output"]
                     is_valid = res["is_valid_table"]

@@ -7,7 +7,7 @@ from PIL import Image
 import torch
 from qwen_vl_utils import process_vision_info
 
-from ..data.preprocessor import format_qwen_vl_conversation, DEFAULT_SYSTEM_PROMPT
+from ..data.preprocessor import format_qwen_vl_conversation, DEFAULT_SYSTEM_PROMPT, DEFAULT_USER_PROMPT
 
 
 class QwenVLTableExtractor:
@@ -33,12 +33,13 @@ class QwenVLTableExtractor:
         self.max_pixels = max_pixels
 
     @torch.no_grad()
-    def predict(self, image: Image.Image) -> str:
+    def predict(self, image: Image.Image, user_prompt: Optional[str] = None) -> str:
         """Extracts markdown table from a single PIL image."""
         messages = format_qwen_vl_conversation(
             image=image,
             target_table=None,
             system_prompt=self.system_prompt,
+            user_prompt=user_prompt or DEFAULT_USER_PROMPT,
             min_pixels=self.min_pixels,
             max_pixels=self.max_pixels,
         )

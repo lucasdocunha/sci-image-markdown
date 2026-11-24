@@ -19,11 +19,25 @@ DEFAULT_SYSTEM_PROMPT = (
     "4. Avoid Dummy Sequences: Never output artificial linear progression sequences (such as 0, 100, 200, 300...)."
 )
 
+DEFAULT_USER_PROMPT = (
+    "Extract all numerical data points from this scientific figure panel into a Markdown table "
+    "with clear column headers. If there are multiple panels or subplots, extract a separate "
+    "table for each panel."
+)
+
+
+def build_user_prompt(base: str, n_panels: Optional[int], panel_hint: Optional[str]) -> str:
+    """Appends the panel-count hint (a template with {n}) when the figure has known panels."""
+    if not panel_hint or not n_panels:
+        return base
+    return f"{base} {panel_hint.format(n=n_panels)}"
+
 
 def format_qwen_vl_conversation(
     image: Image.Image,
     target_table: Optional[str] = None,
     system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+    user_prompt: str = DEFAULT_USER_PROMPT,
     min_pixels: Optional[int] = None,
     max_pixels: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
@@ -43,14 +57,7 @@ def format_qwen_vl_conversation(
             "role": "user",
             "content": [
                 image_dict,
-                {
-                    "type": "text",
-                    "text": (
-                        "Extract all numerical data points from this scientific figure panel into a Markdown table "
-                        "with clear column headers. If there are multiple panels or subplots, extract a separate "
-                        "table for each panel."
-                    ),
-                }
+                {"type": "text", "text": user_prompt},
             ]
         }
     ]

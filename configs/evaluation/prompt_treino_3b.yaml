@@ -1,0 +1,6 @@
+# 3B adapter evaluated with the user prompt it was trained with (before 50a95c1), native resolution
+data:
+  max_image_resolution: null
+  min_pixels: 50176
+  max_pixels: 1003520
+  user_prompt: "Extract all numerical data points from this scientific figure panel into a Markdown table with clear column headers."

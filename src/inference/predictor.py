@@ -9,6 +9,7 @@ import pandas as pd
 
 from ..models.loader import load_model_and_processor
 from ..models.qwen_vl import QwenVLTableExtractor
+from ..data.preprocessor import DEFAULT_USER_PROMPT, build_user_prompt
 from ..metrics.table_parser import parse_markdown_to_dataframe, extract_markdown_table_block
 from ..utils.logging import setup_logger
 
@@ -28,6 +29,8 @@ class TablePredictor:
         eval_cfg = cfg.get("evaluation", {})
         data_cfg = cfg.get("data", {})
         self.max_image_resolution = data_cfg.get("max_image_resolution", 280)
+        self.user_prompt = data_cfg.get("user_prompt") or DEFAULT_USER_PROMPT
+        self.panel_hint = data_cfg.get("panel_hint")
 
         self.extractor = QwenVLTableExtractor(
             model=self.model,
@@ -39,8 +42,11 @@ class TablePredictor:
             max_pixels=data_cfg.get("max_pixels"),
         )
 
-    def predict_image(self, image_input: Union[str, Image.Image]) -> Dict[str, Any]:
-        """Runs table extraction on a single image path or PIL image."""
+    def predict_image(self, image_input: Union[str, Image.Image], n_panels: Optional[int] = None) -> Dict[str, Any]:
+        """Runs table extraction on a single image path or PIL image.
+
+        `n_panels` fills the `data.panel_hint` template, when the config has one.
+        """
         if isinstance(image_input, str):
             image = Image.open(image_input).convert("RGB")
         else:
@@ -49,7 +55,8 @@ class TablePredictor:
         if self.max_image_resolution:
             image.thumbnail((self.max_image_resolution, self.max_image_resolution))
 
-        raw_output = self.extractor.predict(image)
+        user_prompt = build_user_prompt(self.user_prompt, n_panels, self.panel_hint)
+        raw_output = self.extractor.predict(image, user_prompt=user_prompt)
         table_block = extract_markdown_table_block(raw_output) or raw_output
         df, is_valid = parse_markdown_to_dataframe(table_block)
 

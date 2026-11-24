@@ -1,0 +1,7 @@
+# Same as prompt_treino_3b.yaml plus the panel-count hint ({n} = number of bboxes in the metadata)
+data:
+  max_image_resolution: null
+  min_pixels: 50176
+  max_pixels: 1003520
+  user_prompt: "Extract all numerical data points from this scientific figure panel into a Markdown table with clear column headers."
+  panel_hint: "This figure has {n} panel(s). Output exactly {n} Markdown table(s), one per panel; every curve or series of the same panel is a column of that panel's table."

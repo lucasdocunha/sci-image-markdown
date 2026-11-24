@@ -1,0 +1,5 @@
+# Override for train_lightonocr_3_4b.yaml: native resolution, same as the 3B dev runs
+data:
+  max_image_resolution: null
+  min_pixels: 50176
+  max_pixels: 1003520
