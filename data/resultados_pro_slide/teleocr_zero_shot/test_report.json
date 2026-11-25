@@ -1,0 +1,17 @@
+{
+  "valid_table": 0.0,
+  "exact_match": 0.0,
+  "edit_similarity": 0.04383422749755537,
+  "rouge_l": 0.007686306765583261,
+  "rouge_1": 0.008280064940912903,
+  "rouge_2": 0.0003169029709156492,
+  "bleu_4": 1.0302164583194523e-05,
+  "cell_precision": 0.0,
+  "cell_recall": 0.0,
+  "cell_f1": 0.0,
+  "cell_rmse": 0.0,
+  "cell_rne": 0.0,
+  "teds": 0.0,
+  "icdar_rms": 0.09919571045576407,
+  "icdar_score": 0.049597855227882036
+}

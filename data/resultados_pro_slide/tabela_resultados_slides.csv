@@ -4,3 +4,5 @@ LightOnOCR-3-4B + Synth15,lightonocr_synth15,"51,72",51.72,37.30,14.91,59.69,605
 Qwen2.5-VL-7B-Instruct,qwen7b,"52,11",49.97,36.15,13.46,58.85,605,117,Concluído
 Qwen3-VL-8B-Instruct,qwen3_vl_8b,"48,72",48.72,32.39,12.18,52.61,605,36,Concluído
 Qwen2.5-VL-3B-Instruct (Orig Res),qwen3b,"49,49",46.40,34.83,9.98,59.68,605,214,Concluído
+TeleOCR + LoRA (CE loss),teleocr_lora_ce,-,21.01,1.14,0.00,2.28,605,8,Concluído
+TeleOCR (Zero-Shot),teleocr_zero_shot,-,4.96,0.00,0.00,0.00,605,0,Concluído

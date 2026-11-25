@@ -34,6 +34,16 @@ CHECKPOINTS = [
         "display_name": "Qwen2.5-VL-3B-Instruct (Orig Res)",
         "local_target": "49,49",
     },
+    {
+        "id": "teleocr_lora_ce",
+        "display_name": "TeleOCR + LoRA (CE loss)",
+        "local_target": "-",
+    },
+    {
+        "id": "teleocr_zero_shot",
+        "display_name": "TeleOCR (Zero-Shot)",
+        "local_target": "-",
+    },
 ]
 
 def main():
