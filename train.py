@@ -8,6 +8,7 @@ from src.utils.config import load_config, merge_configs
 from src.utils.logging import setup_logger
 from src.models.loader import load_model_and_processor
 from src.data.dataset import SciImageTableDataset
+from src.data.decomposed import FusionTextDataset
 from src.training.trainer import SciImageTableTrainer
 
 logger = setup_logger("train")
@@ -48,32 +49,44 @@ def main(config: str, model_config: str, training_config: str):
     double_aug_prob = float(data_cfg.get("double_table_aug_prob", 0.02))
     synth_ratio_raw = data_cfg.get("synthetic_sample_ratio", 0.02)
     synth_sample_ratio = float(synth_ratio_raw) if synth_ratio_raw is not None else None
-    train_dataset = SciImageTableDataset(
-        data_path=data_cfg.get("train_file", "data/processed/train.jsonl"),
-        image_dir=data_cfg.get("image_folder"),
-        system_prompt=data_cfg.get("system_prompt"),
-        max_image_resolution=max_res,
-        extra_data_paths=extra_train_paths,
-        extra_sample_ratio=synth_sample_ratio,
-        double_table_aug_prob=double_aug_prob,
-        seed=int(cfg.get("seed", 42)),
-    )
+
+    # Experiment B, M3: text-only fusion (skeleton + values -> final table).
+    is_fusion = data_cfg.get("task") == "fusion"
+    if is_fusion:
+        train_dataset = FusionTextDataset(
+            data_path=data_cfg["train_file"], system_prompt=data_cfg.get("system_prompt"),
+        )
+    else:
+        train_dataset = SciImageTableDataset(
+            data_path=data_cfg.get("train_file", "data/processed/train.jsonl"),
+            image_dir=data_cfg.get("image_folder"),
+            system_prompt=data_cfg.get("system_prompt"),
+            max_image_resolution=max_res,
+            extra_data_paths=extra_train_paths,
+            extra_sample_ratio=synth_sample_ratio,
+            double_table_aug_prob=double_aug_prob,
+            seed=int(cfg.get("seed", 42)),
+        )
     logger.info(
         f"Loaded {len(train_dataset)} total training samples "
-        f"(extra_sources={len(extra_train_paths)}, synth_ratio={synth_sample_ratio}, double_table_aug_prob={double_aug_prob:.0%})."
+        f"(task={'fusion' if is_fusion else 'image'}, extra_sources={len(extra_train_paths)}, "
+        f"synth_ratio={synth_sample_ratio}, double_table_aug_prob={double_aug_prob:.0%})."
     )
 
     eval_dataset = None
     val_file = data_cfg.get("val_file", "data/processed/val.jsonl")
-    if val_file:
+    if val_file and os.path.exists(val_file):
         try:
-            eval_dataset = SciImageTableDataset(
-                data_path=val_file,
-                image_dir=data_cfg.get("image_folder"),
-                system_prompt=data_cfg.get("system_prompt"),
-                max_image_resolution=max_res,
-                double_table_aug_prob=0.0,
-            )
+            if is_fusion:
+                eval_dataset = FusionTextDataset(data_path=val_file, system_prompt=data_cfg.get("system_prompt"))
+            else:
+                eval_dataset = SciImageTableDataset(
+                    data_path=val_file,
+                    image_dir=data_cfg.get("image_folder"),
+                    system_prompt=data_cfg.get("system_prompt"),
+                    max_image_resolution=max_res,
+                    double_table_aug_prob=0.0,
+                )
             logger.info(f"Loaded {len(eval_dataset)} validation samples.")
         except FileNotFoundError:
             logger.warning(f"Validation file {val_file} not found. Skipping eval dataset.")

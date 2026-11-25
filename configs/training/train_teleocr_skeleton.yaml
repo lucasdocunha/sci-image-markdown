@@ -1,0 +1,71 @@
+# Experimento B — módulo SKELETON do pipeline TeleOCR (ver src/data/decomposed.py)
+data:
+  double_table_aug_prob: 0.0
+  image_folder: data/processed
+  max_image_resolution: null
+  max_pixels: 200704
+  max_table_chars: 2500
+  min_pixels: 50176
+  processed_dir: data/processed
+  raw_dir: data/raw
+  splits_dir: data/splits
+  system_prompt: You extract only the STRUCTURE of the data table in the given scientific
+    figure as a Markdown table. Keep the exact column headers and the exact number
+    of rows and columns. Replace every data cell (not the headers) with '?'. Output
+    the Markdown table only.
+  test_file: data/processed/test.jsonl
+  train_file: data/processed/decomp_skeleton_train.jsonl
+  val_file: data/processed/decomp_skeleton_val.jsonl
+evaluation:
+  batch_size: 1
+  do_sample: false
+  max_new_tokens: 1024
+  numerical_relative_tolerance: 0.05
+  output_eval_dir: /media/ssd2/datasets/sci-image-markdown-data/outputs/eval_results/teleocr_decomp_skeleton
+  temperature: 0.0
+experiment_name: teleocr_decomp_skeleton
+model:
+  attn_implementation: sdpa
+  model_type: qwen2_5_vl
+  name_or_path: XingChen-AGI/TeleOCR
+  torch_dtype: bfloat16
+  trust_remote_code: true
+  use_cache: false
+peft:
+  bias: none
+  lora_alpha: 32
+  lora_dropout: 0.05
+  r: 16
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  task_type: CAUSAL_LM
+project_name: sci-image-markdown
+seed: 42
+training:
+  bf16: true
+  dataloader_num_workers: 2
+  eval_strategy: epoch
+  fp16: false
+  gradient_accumulation_steps: 8
+  gradient_checkpointing: true
+  learning_rate: 0.0002
+  logging_steps: 10
+  loss_type: ce
+  lr_scheduler_type: cosine
+  method: lora
+  num_train_epochs: 3
+  optim: adamw_torch
+  output_dir: /media/ssd2/datasets/sci-image-markdown-data/outputs/teleocr_decomp_skeleton
+  per_device_eval_batch_size: 1
+  per_device_train_batch_size: 1
+  report_to: none
+  save_strategy: epoch
+  save_total_limit: 2
+  warmup_steps: 20
+  weight_decay: 0.01

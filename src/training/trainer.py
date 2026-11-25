@@ -41,11 +41,12 @@ class LazyMultimodalDataset(Dataset):
             last_nl = cut.rfind("\n")
             table = cut[:last_nl] if last_nl > 0 else cut
         msgs = format_qwen_vl_conversation(
-            image=item["image"],
+            image=item.get("image"),
             target_table=table,
             system_prompt=item["system_prompt"],
             min_pixels=self.min_pixels,
             max_pixels=self.max_pixels,
+            user_text=item.get("user_text"),
         )
         return {"messages": msgs}
 

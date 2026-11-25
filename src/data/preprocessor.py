@@ -20,19 +20,32 @@ DEFAULT_SYSTEM_PROMPT = (
 )
 
 
+DEFAULT_USER_TEXT = (
+    "Extract all numerical data points from this scientific figure panel into a Markdown table "
+    "with clear column headers. If there are multiple panels or subplots, extract a separate "
+    "table for each panel."
+)
+
+
 def format_qwen_vl_conversation(
-    image: Image.Image,
+    image: Optional[Image.Image],
     target_table: Optional[str] = None,
     system_prompt: str = DEFAULT_SYSTEM_PROMPT,
     min_pixels: Optional[int] = None,
     max_pixels: Optional[int] = None,
+    user_text: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Formats an image and optional target into Qwen2.5-VL chat template format."""
-    image_dict: Dict[str, Any] = {"type": "image", "image": image}
-    if min_pixels is not None:
-        image_dict["min_pixels"] = min_pixels
-    if max_pixels is not None:
-        image_dict["max_pixels"] = max_pixels
+    """Formats an image (optional, for text-only tasks) and target into Qwen2.5-VL chat template format."""
+    text_part = {"type": "text", "text": user_text or DEFAULT_USER_TEXT}
+    if image is None:
+        user_content: List[Dict[str, Any]] = [text_part]
+    else:
+        image_dict: Dict[str, Any] = {"type": "image", "image": image}
+        if min_pixels is not None:
+            image_dict["min_pixels"] = min_pixels
+        if max_pixels is not None:
+            image_dict["max_pixels"] = max_pixels
+        user_content = [image_dict, text_part]
 
     messages = [
         {
@@ -41,17 +54,7 @@ def format_qwen_vl_conversation(
         },
         {
             "role": "user",
-            "content": [
-                image_dict,
-                {
-                    "type": "text",
-                    "text": (
-                        "Extract all numerical data points from this scientific figure panel into a Markdown table "
-                        "with clear column headers. If there are multiple panels or subplots, extract a separate "
-                        "table for each panel."
-                    ),
-                }
-            ]
+            "content": user_content
         }
     ]
 

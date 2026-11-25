@@ -35,9 +35,11 @@ class QwenVLDataCollator:
             image_inputs.append(image_input)
 
         # Batch process using Qwen processor
+        # Text-only batches (e.g. M3 fusion) carry no images at all.
+        has_images = any(img is not None for img in image_inputs)
         inputs = self.processor(
             text=texts,
-            images=image_inputs,
+            images=image_inputs if has_images else None,
             padding=True,
             return_tensors="pt"
         )
