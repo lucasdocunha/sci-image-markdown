@@ -1,0 +1,75 @@
+# LoRA fine-tuning of TeleOCR with standard Cross-Entropy loss (baseline, no ICDAR metric loss).
+# Same split, seed and epochs as the Qwen baselines, for a fair comparison.
+# Model is ~0.5B LLM, so no 4-bit quantization: plain bf16 LoRA.
+project_name: "sci-image-markdown"
+experiment_name: "teleocr_lora_ce"
+seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  splits_dir: "data/splits"
+  train_file: "data/processed/train.jsonl"
+  val_file: "data/processed/val.jsonl"
+  test_file: "data/processed/test.jsonl"
+  image_folder: "data/processed"
+  max_image_resolution: null
+  min_pixels: 50176
+  max_pixels: 200704
+  max_table_chars: 2500
+  double_table_aug_prob: 0.0
+  system_prompt: "Extract the data table from this figure as a Markdown table."
+
+model:
+  name_or_path: "XingChen-AGI/TeleOCR"
+  model_type: "qwen2_5_vl"
+  trust_remote_code: true
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"
+  use_cache: false
+
+training:
+  method: "lora"
+  loss_type: "ce"
+  output_dir: "/media/ssd2/datasets/sci-image-markdown-data/outputs/teleocr_lora_ce"
+  num_train_epochs: 3
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  optim: "adamw_torch"
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_steps: 20
+  weight_decay: 0.01
+  logging_steps: 10
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  save_total_limit: 2
+  gradient_checkpointing: true
+  bf16: true
+  fp16: false
+  dataloader_num_workers: 2
+  report_to: "none"
+
+peft:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+
+evaluation:
+  batch_size: 1
+  max_new_tokens: 1024
+  temperature: 0.0
+  do_sample: false
+  numerical_relative_tolerance: 0.05
+  output_eval_dir: "/media/ssd2/datasets/sci-image-markdown-data/outputs/eval_results/teleocr_lora_ce"
