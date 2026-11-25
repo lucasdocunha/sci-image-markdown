@@ -1,0 +1,31 @@
+# Zero-Shot Evaluation for TeleOCR (XingChen-AGI/TeleOCR, Qwen2.5-VL arch, ~0.5B LLM)
+# Prompt deliberately basic: baseline to see how the model behaves out of the box.
+project_name: "sci-image-markdown"
+experiment_name: "zero_shot_teleocr"
+seed: 42
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  test_file: "data/processed/test.jsonl"
+  image_folder: "data/processed"
+  max_image_resolution: null
+  min_pixels: 50176
+  max_pixels: 200704
+  system_prompt: "Extract the data table from this figure as a Markdown table."
+
+model:
+  name_or_path: "XingChen-AGI/TeleOCR"
+  model_type: "qwen2_5_vl"
+  trust_remote_code: true
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"
+  use_cache: true
+
+evaluation:
+  batch_size: 1
+  max_new_tokens: 1024
+  temperature: 0.0
+  do_sample: false
+  numerical_relative_tolerance: 0.05
+  output_eval_dir: "/media/ssd2/datasets/sci-image-markdown-data/outputs/eval_results/zero_shot_teleocr"

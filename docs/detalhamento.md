@@ -110,7 +110,7 @@ $$h = W_0 x + \Delta W x = W_0 x + \frac{\alpha}{r} B (A x)$$
 #### Análise dos Hiperparâmetros de LoRA:
 - **Rank ($r$):** Controla a capacidade expressiva dos adaptadores. No nosso caso, $r=16$ equilibra perfeitamente capacidade e regularização para geração de tabelas.
 - **Alpha ($\alpha$):** Constante que dimensiona a intensidade da atualização. A razão $\frac{\alpha}{r} = \frac{32}{16} = 2.0$ atua como uma taxa de aprendizado multiplicativa estática que estabiliza o gradiente quando $r$ é alterado.
-- **Dropout ($lora\_dropout=0.05$):** Dropout probabilístico aplicado à ativação $A x$, prevenindo sobreajuste (*overfitting*) em termos textuais específicos.
+- **Dropout (`lora_dropout=0.05`):** Dropout probabilístico aplicado à ativação $A x$, prevenindo sobreajuste (*overfitting*) em termos textuais específicos.
 - **Módulos Alvo (`target_modules: ["q_proj", "v_proj"]`):** Aplicar LoRA nas projeções de Query e Value da atenção multi-cabeça permite ao modelo alterar o padrão de ancoragem visual (*onde olhar*) e recuperação de conteúdo (*o que extrair*) sem instabilizar a projeção de saída ou o MLP.
 
 ---
@@ -172,7 +172,7 @@ $$\text{Rótulos Alvo: } [x_2, x_3, \dots, x_N]$$
 
 #### O Problema no Qwen2.5-VL:
 O modelo possui uma camada de saída linear (`lm_head`) que projeta o estado oculto de dimensão $D=2048$ para o espaço do vocabulário $V=152.064$:
-$$\text{logits} = \text{hidden\_states} \times W_{\text{lm\_head}}^T \quad \in \mathbb{R}^{B \times S \times 152.064}$$
+$$\text{logits} = \mathbf{H}_{\text{hidden}} \times W_{\text{lm-head}}^T \quad \in \mathbb{R}^{B \times S \times 152.064}$$
 
 Se o batch size $B=1$ e o comprimento da sequência multimodal $S=2048$ tokens:
 $$\text{Tamanho do tensor de logits} = 1 \times 2048 \times 152.064 \times 4 \text{ bytes (FP32)} \approx 1.246 \text{ GB}$$
