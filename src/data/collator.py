@@ -41,6 +41,7 @@ class QwenVLDataCollator:
             padding=True,
             return_tensors="pt"
         )
+        inputs.pop("mm_token_type_ids", None)
 
         labels = inputs["input_ids"].clone()
 

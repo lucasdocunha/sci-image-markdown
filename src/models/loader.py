@@ -43,6 +43,165 @@ from ..utils.logging import setup_logger
 
 logger = setup_logger(__name__)
 
+# --- Compatibility Patches for Transformers v5 & Remote Code Architectures (e.g. TeleOCR) ---
+try:
+    import transformers.modeling_rope_utils as _mru
+
+    def _compute_default_rope_parameters(config, device=None, **kwargs):
+        rope_theta = getattr(config, "rope_theta", None)
+        if rope_theta is None and hasattr(config, "rope_parameters") and config.rope_parameters:
+            rope_theta = config.rope_parameters.get("rope_theta")
+        if rope_theta is None:
+            rope_theta = 10000.0
+        dim = getattr(config, "head_dim", None) or (config.hidden_size // config.num_attention_heads)
+        inv_freq = 1.0 / (rope_theta ** (torch.arange(0, dim, 2, dtype=torch.float) / dim))
+        if device is not None:
+            inv_freq = inv_freq.to(device)
+        return inv_freq, 1.0
+
+    _mru.ROPE_INIT_FUNCTIONS["default"] = _compute_default_rope_parameters
+except Exception:
+    pass
+
+try:
+    from transformers.conversion_mapping import USER_REGISTERED_MAPPINGS
+    USER_REGISTERED_MAPPINGS.add("Qwen2_5_VLForConditionalGeneration")
+    USER_REGISTERED_MAPPINGS.add("qwen2_5_vl")
+except Exception:
+    pass
+
+try:
+    from transformers.modeling_utils import PreTrainedModel
+    _orig_get_expanded_tied_weights_keys = PreTrainedModel.get_expanded_tied_weights_keys
+
+    def _patched_get_expanded_tied_weights_keys(self, all_submodels: bool = False) -> dict:
+        tied_keys = getattr(self, "_tied_weights_keys", None)
+        if isinstance(tied_keys, (list, tuple, set)):
+            emb_name = "model.language_model.embed_tokens.weight"
+            try:
+                input_emb = self.get_input_embeddings()
+                for name, param in self.named_parameters():
+                    if param is input_emb.weight:
+                        emb_name = name
+                        break
+            except Exception:
+                pass
+            return {k: emb_name for k in tied_keys}
+        return _orig_get_expanded_tied_weights_keys(self, all_submodels=all_submodels)
+
+    PreTrainedModel.get_expanded_tied_weights_keys = _patched_get_expanded_tied_weights_keys
+except Exception:
+    pass
+
+try:
+    import transformers.masking_utils as _tmu
+    _orig_create_causal_mask = _tmu.create_causal_mask
+
+    def _patched_create_causal_mask(*args, **kwargs):
+        if "input_embeds" in kwargs and "inputs_embeds" not in kwargs:
+            kwargs["inputs_embeds"] = kwargs.pop("input_embeds")
+        kwargs.pop("cache_position", None)
+        return _orig_create_causal_mask(*args, **kwargs)
+
+    _tmu.create_causal_mask = _patched_create_causal_mask
+
+    if hasattr(_tmu, "create_sliding_window_causal_mask"):
+        _orig_sw = _tmu.create_sliding_window_causal_mask
+
+        def _patched_sw(*args, **kwargs):
+            if "input_embeds" in kwargs and "inputs_embeds" not in kwargs:
+                kwargs["inputs_embeds"] = kwargs.pop("input_embeds")
+            kwargs.pop("cache_position", None)
+            return _orig_sw(*args, **kwargs)
+
+        _tmu.create_sliding_window_causal_mask = _patched_sw
+except Exception:
+    pass
+
+
+def _patch_teleocr_generation(model: Any) -> None:
+    """Patches prepare_inputs_for_generation for TeleOCR remote code on Transformers v5."""
+    model_cls = type(model)
+    if getattr(model_cls, "_teleocr_patched", False):
+        return
+
+    def teleocr_prepare_inputs_for_generation(
+        self,
+        input_ids,
+        past_key_values=None,
+        attention_mask=None,
+        inputs_embeds=None,
+        cache_position=None,
+        position_ids=None,
+        use_cache=True,
+        pixel_values=None,
+        pixel_values_videos=None,
+        image_grid_thw=None,
+        video_grid_thw=None,
+        second_per_grid_ts=None,
+        **kwargs,
+    ):
+        model_inputs = super(model_cls, self).prepare_inputs_for_generation(
+            input_ids,
+            past_key_values=past_key_values,
+            attention_mask=attention_mask,
+            inputs_embeds=inputs_embeds,
+            cache_position=cache_position,
+            position_ids=position_ids,
+            pixel_values=pixel_values,
+            pixel_values_videos=pixel_values_videos,
+            image_grid_thw=image_grid_thw,
+            video_grid_thw=video_grid_thw,
+            second_per_grid_ts=second_per_grid_ts,
+            use_cache=use_cache,
+            **kwargs,
+        )
+        if cache_position is None:
+            cache_position = model_inputs.get("cache_position")
+        if cache_position is None:
+            past_seen = past_key_values.get_seq_length() if past_key_values is not None else 0
+            seq_len = input_ids.shape[1] if input_ids is not None else 1
+            dev = input_ids.device if input_ids is not None else "cpu"
+            cache_position = torch.arange(past_seen, past_seen + seq_len, device=dev)
+
+        if position_ids is None:
+            in_ids = model_inputs.get("input_ids", input_ids)
+            bs, slen = in_ids.shape[:2]
+            dev = in_ids.device
+            if cache_position[0] == 0 or getattr(self.model, "rope_deltas", None) is None:
+                vision_positions, rope_deltas = self.model.get_rope_index(
+                    in_ids,
+                    image_grid_thw=image_grid_thw,
+                    video_grid_thw=video_grid_thw,
+                    second_per_grid_ts=second_per_grid_ts,
+                    attention_mask=attention_mask,
+                )
+                self.model.rope_deltas = rope_deltas
+                if attention_mask is not None:
+                    text_pos = attention_mask.long().cumsum(-1) - 1
+                    text_pos.masked_fill_(attention_mask == 0, 1)
+                else:
+                    text_pos = torch.arange(slen, device=dev).unsqueeze(0).expand(bs, -1)
+            else:
+                pos = torch.arange(slen, device=dev).view(1, 1, -1).expand(3, bs, -1)
+                delta = (cache_position[0] + self.model.rope_deltas).repeat_interleave(
+                    bs // self.model.rope_deltas.shape[0], dim=0
+                )
+                vision_positions = pos + delta.expand_as(pos)
+                text_pos = (torch.arange(slen, device=dev) + cache_position[0]).unsqueeze(0).expand(bs, -1)
+
+            text_positions = text_pos[None, ...]
+            model_inputs["position_ids"] = torch.cat([text_positions, vision_positions], dim=0)
+
+        if cache_position[0] != 0:
+            model_inputs["pixel_values"] = None
+            model_inputs["pixel_values_videos"] = None
+
+        return model_inputs
+
+    model_cls.prepare_inputs_for_generation = teleocr_prepare_inputs_for_generation
+    model_cls._teleocr_patched = True
+
 
 def build_quantization_config(cfg: Dict[str, Any]) -> Optional[BitsAndBytesConfig]:
     """Constructs BitsAndBytesConfig for 4-bit / 8-bit QLoRA."""
@@ -125,7 +284,10 @@ def load_model_and_processor(
     if attn_impl:
         kwargs["attn_implementation"] = attn_impl
 
-    if "qwen3_5" in model_type or "LightOnOCR" in model_name or "lighton" in model_name.lower():
+    if "teleocr" in model_name.lower() or "teleocr" in model_type.lower():
+        model = AutoModelForImageTextToText.from_pretrained(model_name, **kwargs)
+        _patch_teleocr_generation(model)
+    elif "qwen3_5" in model_type or "LightOnOCR" in model_name or "lighton" in model_name.lower():
         if Qwen3_5ForConditionalGeneration is not None:
             model = Qwen3_5ForConditionalGeneration.from_pretrained(model_name, **kwargs)
         else:

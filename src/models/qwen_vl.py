@@ -57,6 +57,7 @@ class QwenVLTableExtractor:
             padding=True,
             return_tensors="pt"
         )
+        inputs.pop("mm_token_type_ids", None)
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
 
         gen_kwargs = {
