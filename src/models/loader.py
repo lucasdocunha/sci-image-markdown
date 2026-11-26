@@ -45,78 +45,93 @@ logger = setup_logger(__name__)
 
 # --- Compatibility Patches for Transformers v5 & Remote Code Architectures (e.g. TeleOCR) ---
 try:
-    import transformers.modeling_rope_utils as _mru
-
-    def _compute_default_rope_parameters(config, device=None, **kwargs):
-        rope_theta = getattr(config, "rope_theta", None)
-        if rope_theta is None and hasattr(config, "rope_parameters") and config.rope_parameters:
-            rope_theta = config.rope_parameters.get("rope_theta")
-        if rope_theta is None:
-            rope_theta = 10000.0
-        dim = getattr(config, "head_dim", None) or (config.hidden_size // config.num_attention_heads)
-        inv_freq = 1.0 / (rope_theta ** (torch.arange(0, dim, 2, dtype=torch.float) / dim))
-        if device is not None:
-            inv_freq = inv_freq.to(device)
-        return inv_freq, 1.0
-
-    _mru.ROPE_INIT_FUNCTIONS["default"] = _compute_default_rope_parameters
-except Exception:
-    pass
-
-try:
     from transformers.conversion_mapping import USER_REGISTERED_MAPPINGS
     USER_REGISTERED_MAPPINGS.add("Qwen2_5_VLForConditionalGeneration")
     USER_REGISTERED_MAPPINGS.add("qwen2_5_vl")
 except Exception:
     pass
 
-try:
-    from transformers.modeling_utils import PreTrainedModel
-    _orig_get_expanded_tied_weights_keys = PreTrainedModel.get_expanded_tied_weights_keys
 
-    def _patched_get_expanded_tied_weights_keys(self, all_submodels: bool = False) -> dict:
-        tied_keys = getattr(self, "_tied_weights_keys", None)
-        if isinstance(tied_keys, (list, tuple, set)):
-            emb_name = "model.language_model.embed_tokens.weight"
-            try:
-                input_emb = self.get_input_embeddings()
-                for name, param in self.named_parameters():
-                    if param is input_emb.weight:
-                        emb_name = name
-                        break
-            except Exception:
-                pass
-            return {k: emb_name for k in tied_keys}
-        return _orig_get_expanded_tied_weights_keys(self, all_submodels=all_submodels)
+def _apply_teleocr_compatibility_patches():
+    """Apply monkey-patches strictly needed for TeleOCR remote code on Transformers v5."""
+    try:
+        import transformers.modeling_rope_utils as _mru
+        if "default" not in _mru.ROPE_INIT_FUNCTIONS:
+            def _compute_default_rope_parameters(config, device=None, **kwargs):
+                rope_theta = getattr(config, "rope_theta", None)
+                if rope_theta is None and hasattr(config, "rope_parameters") and config.rope_parameters:
+                    rope_theta = config.rope_parameters.get("rope_theta")
+                if rope_theta is None:
+                    rope_theta = 10000.0
+                head_dim = getattr(config, "head_dim", None) or (config.hidden_size // config.num_attention_heads)
+                partial_rotary_factor = 1.0
+                if hasattr(config, "rope_parameters") and config.rope_parameters:
+                    partial_rotary_factor = config.rope_parameters.get("partial_rotary_factor", 1.0)
+                elif hasattr(config, "partial_rotary_factor"):
+                    partial_rotary_factor = getattr(config, "partial_rotary_factor", 1.0)
+                dim = int(head_dim * partial_rotary_factor)
+                inv_freq = 1.0 / (rope_theta ** (torch.arange(0, dim, 2, dtype=torch.float) / dim))
+                if device is not None:
+                    inv_freq = inv_freq.to(device)
+                return inv_freq, 1.0
 
-    PreTrainedModel.get_expanded_tied_weights_keys = _patched_get_expanded_tied_weights_keys
-except Exception:
-    pass
+            _mru.ROPE_INIT_FUNCTIONS["default"] = _compute_default_rope_parameters
+    except Exception:
+        pass
 
-try:
-    import transformers.masking_utils as _tmu
-    _orig_create_causal_mask = _tmu.create_causal_mask
+    try:
+        from transformers.modeling_utils import PreTrainedModel
+        if not getattr(PreTrainedModel, "_teleocr_tied_patched", False):
+            _orig_get_expanded_tied_weights_keys = PreTrainedModel.get_expanded_tied_weights_keys
 
-    def _patched_create_causal_mask(*args, **kwargs):
-        if "input_embeds" in kwargs and "inputs_embeds" not in kwargs:
-            kwargs["inputs_embeds"] = kwargs.pop("input_embeds")
-        kwargs.pop("cache_position", None)
-        return _orig_create_causal_mask(*args, **kwargs)
+            def _patched_get_expanded_tied_weights_keys(self, all_submodels: bool = False) -> dict:
+                # Strictly isolate this patch to TeleOCR
+                if "teleocr" in self.__class__.__name__.lower():
+                    tied_keys = getattr(self, "_tied_weights_keys", None)
+                    if isinstance(tied_keys, (list, tuple, set)):
+                        emb_name = "model.language_model.embed_tokens.weight"
+                        try:
+                            input_emb = self.get_input_embeddings()
+                            for name, param in self.named_parameters():
+                                if param is input_emb.weight:
+                                    emb_name = name
+                                    break
+                        except Exception:
+                            pass
+                        return {k: emb_name for k in tied_keys}
+                return _orig_get_expanded_tied_weights_keys(self, all_submodels=all_submodels)
 
-    _tmu.create_causal_mask = _patched_create_causal_mask
+            PreTrainedModel.get_expanded_tied_weights_keys = _patched_get_expanded_tied_weights_keys
+            PreTrainedModel._teleocr_tied_patched = True
+    except Exception:
+        pass
 
-    if hasattr(_tmu, "create_sliding_window_causal_mask"):
-        _orig_sw = _tmu.create_sliding_window_causal_mask
+    try:
+        import transformers.masking_utils as _tmu
+        if not getattr(_tmu, "_teleocr_mask_patched", False):
+            _orig_create_causal_mask = _tmu.create_causal_mask
 
-        def _patched_sw(*args, **kwargs):
-            if "input_embeds" in kwargs and "inputs_embeds" not in kwargs:
-                kwargs["inputs_embeds"] = kwargs.pop("input_embeds")
-            kwargs.pop("cache_position", None)
-            return _orig_sw(*args, **kwargs)
+            def _patched_create_causal_mask(*args, **kwargs):
+                if "input_embeds" in kwargs and "inputs_embeds" not in kwargs:
+                    kwargs["inputs_embeds"] = kwargs.pop("input_embeds")
+                kwargs.pop("cache_position", None)
+                return _orig_create_causal_mask(*args, **kwargs)
 
-        _tmu.create_sliding_window_causal_mask = _patched_sw
-except Exception:
-    pass
+            _tmu.create_causal_mask = _patched_create_causal_mask
+
+            if hasattr(_tmu, "create_sliding_window_causal_mask"):
+                _orig_sw = _tmu.create_sliding_window_causal_mask
+
+                def _patched_sw(*args, **kwargs):
+                    if "input_embeds" in kwargs and "inputs_embeds" not in kwargs:
+                        kwargs["inputs_embeds"] = kwargs.pop("input_embeds")
+                    kwargs.pop("cache_position", None)
+                    return _orig_sw(*args, **kwargs)
+
+                _tmu.create_sliding_window_causal_mask = _patched_sw
+            _tmu._teleocr_mask_patched = True
+    except Exception:
+        pass
 
 
 def _patch_teleocr_generation(model: Any) -> None:
@@ -285,6 +300,7 @@ def load_model_and_processor(
         kwargs["attn_implementation"] = attn_impl
 
     if "teleocr" in model_name.lower() or "teleocr" in model_type.lower():
+        _apply_teleocr_compatibility_patches()
         model = AutoModelForImageTextToText.from_pretrained(model_name, **kwargs)
         _patch_teleocr_generation(model)
     elif "qwen3_5" in model_type or "LightOnOCR" in model_name or "lighton" in model_name.lower():
