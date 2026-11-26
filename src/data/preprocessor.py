@@ -24,6 +24,7 @@ def format_qwen_vl_conversation(
     image: Image.Image,
     target_table: Optional[str] = None,
     system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+    caption: Optional[str] = None,
     min_pixels: Optional[int] = None,
     max_pixels: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
@@ -33,6 +34,14 @@ def format_qwen_vl_conversation(
         image_dict["min_pixels"] = min_pixels
     if max_pixels is not None:
         image_dict["max_pixels"] = max_pixels
+
+    user_text = (
+        "Extract all numerical data points from this scientific figure panel into a Markdown table "
+        "with clear column headers. If there are multiple panels or subplots, extract a separate "
+        "table for each panel."
+    )
+    if caption and str(caption).strip():
+        user_text += f"\n\nFigure Caption: {str(caption).strip()}"
 
     messages = [
         {
@@ -45,11 +54,7 @@ def format_qwen_vl_conversation(
                 image_dict,
                 {
                     "type": "text",
-                    "text": (
-                        "Extract all numerical data points from this scientific figure panel into a Markdown table "
-                        "with clear column headers. If there are multiple panels or subplots, extract a separate "
-                        "table for each panel."
-                    ),
+                    "text": user_text,
                 }
             ]
         }

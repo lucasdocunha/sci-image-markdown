@@ -96,7 +96,11 @@ def main(
                     resolved_path = img_path
 
                 try:
-                    res = predictor.predict_image(resolved_path)
+                    res = predictor.predict_image(
+                        resolved_path,
+                        caption=rec.get("caption"),
+                        sample_id=rec.get("id"),
+                    )
                     pred_table = res["markdown_table"]
                     raw_output = res["raw_output"]
                     is_valid = res["is_valid_table"]

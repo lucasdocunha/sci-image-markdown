@@ -44,6 +44,7 @@ class LazyMultimodalDataset(Dataset):
             image=item["image"],
             target_table=table,
             system_prompt=item["system_prompt"],
+            caption=item.get("caption"),
             min_pixels=self.min_pixels,
             max_pixels=self.max_pixels,
         )

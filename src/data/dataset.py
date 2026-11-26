@@ -54,6 +54,19 @@ class SciImageTableDataset(Dataset):
         self.double_table_aug_prob = float(double_table_aug_prob)
         self.rng = random.Random(seed)
 
+        # Build fallback caption index from raw metadata
+        self.caption_index: Dict[str, str] = {}
+        for meta_file in ["data/raw/train_metadata.jsonl", "data/raw/validation_metadata.jsonl", "data/raw/test_metadata.jsonl"]:
+            if os.path.exists(meta_file):
+                try:
+                    for mline in read_jsonl(meta_file):
+                        cid = mline.get("id")
+                        cap = mline.get("caption")
+                        if cid and cap:
+                            self.caption_index[cid] = str(cap).strip()
+                except Exception:
+                    pass
+
         if not os.path.exists(data_path):
             raise FileNotFoundError(f"Dataset file not found: {data_path}")
 
@@ -139,6 +152,7 @@ class SciImageTableDataset(Dataset):
 
         markdown_table = item.get("table", item.get("markdown", item.get("target", "")))
         sample_id = item.get("id", str(idx))
+        caption = item.get("caption") or self.caption_index.get(sample_id) or self.caption_index.get(item.get("id"))
         metadata = dict(item.get("metadata", {}))
 
         # Apply 10% double-table augmentation (stacks image vertically on top of itself + repeats table)
@@ -153,6 +167,7 @@ class SciImageTableDataset(Dataset):
             "image": image,
             "image_path": image_path,
             "table": markdown_table,
+            "caption": caption,
             "system_prompt": self.system_prompt,
             "metadata": metadata,
         }

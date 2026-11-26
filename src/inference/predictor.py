@@ -29,6 +29,20 @@ class TablePredictor:
         data_cfg = cfg.get("data", {})
         self.max_image_resolution = data_cfg.get("max_image_resolution", 280)
 
+        # Build fallback caption index from metadata
+        from ..utils.io import read_jsonl
+        self.caption_index: Dict[str, str] = {}
+        for meta_file in ["data/raw/train_metadata.jsonl", "data/raw/validation_metadata.jsonl", "data/raw/test_metadata.jsonl"]:
+            if os.path.exists(meta_file):
+                try:
+                    for mline in read_jsonl(meta_file):
+                        cid = mline.get("id")
+                        cap = mline.get("caption")
+                        if cid and cap:
+                            self.caption_index[cid] = str(cap).strip()
+                except Exception:
+                    pass
+
         self.extractor = QwenVLTableExtractor(
             model=self.model,
             processor=self.processor,
@@ -39,17 +53,27 @@ class TablePredictor:
             max_pixels=data_cfg.get("max_pixels"),
         )
 
-    def predict_image(self, image_input: Union[str, Image.Image]) -> Dict[str, Any]:
+    def predict_image(
+        self,
+        image_input: Union[str, Image.Image],
+        caption: Optional[str] = None,
+        sample_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Runs table extraction on a single image path or PIL image."""
         if isinstance(image_input, str):
             image = Image.open(image_input).convert("RGB")
+            if not sample_id:
+                sample_id = os.path.splitext(os.path.basename(image_input))[0]
         else:
             image = image_input.copy() if hasattr(image_input, "copy") else image_input
+
+        if not caption and sample_id:
+            caption = self.caption_index.get(sample_id)
 
         if self.max_image_resolution:
             image.thumbnail((self.max_image_resolution, self.max_image_resolution))
 
-        raw_output = self.extractor.predict(image)
+        raw_output = self.extractor.predict(image, caption=caption)
         table_block = extract_markdown_table_block(raw_output) or raw_output
         df, is_valid = parse_markdown_to_dataframe(table_block)
 

@@ -33,12 +33,13 @@ class QwenVLTableExtractor:
         self.max_pixels = max_pixels
 
     @torch.no_grad()
-    def predict(self, image: Image.Image) -> str:
+    def predict(self, image: Image.Image, caption: Optional[str] = None) -> str:
         """Extracts markdown table from a single PIL image."""
         messages = format_qwen_vl_conversation(
             image=image,
             target_table=None,
             system_prompt=self.system_prompt,
+            caption=caption,
             min_pixels=self.min_pixels,
             max_pixels=self.max_pixels,
         )
