@@ -10,6 +10,11 @@ OUT_DIR = BASE_DIR / "data" / "resultados_pro_slide"
 
 CHECKPOINTS = [
     {
+        "id": "lightonocr_3_4b_caption_icdar",
+        "display_name": "LightOnOCR-3-4B + Caption (ICDAR Loss v3)",
+        "local_target": "-",
+    },
+    {
         "id": "lightonocr_52_32",
         "display_name": "LightOnOCR-3-4B (Recorde)",
         "local_target": "52,32",

@@ -9,6 +9,13 @@
 #SBATCH --time=24:00:00
 
 set -euo pipefail
+
+cleanup() {
+  echo "=== Restoring queue on exit ==="
+  scontrol release 458,459,461,462,463,464 || true
+}
+trap cleanup EXIT
+
 cd /home/lucas.ocunha/sci-image-markdown
 
 source .venv/bin/activate
@@ -44,6 +51,14 @@ if [ -f "$META" ] && [ -f "$EVAL_DIR/test_predictions.jsonl" ]; then
     --metadata "$META" \
     --repo-predictions "$EVAL_DIR/test_predictions.jsonl" \
     --out-dir "$EVAL_DIR" 2>&1 | tee -a logs/eval_lightonocr_3_4b_caption.log
+
+  echo "=== Consolidating results for slides ==="
+  SLIDE_DIR="data/resultados_pro_slide/lightonocr_3_4b_caption_icdar"
+  mkdir -p "$SLIDE_DIR"
+  cp -r "$EVAL_DIR"/* "$SLIDE_DIR/" 2>/dev/null || true
+  cp "$EVAL_DIR/test_report.json" "$SLIDE_DIR/test_report_local.json" 2>/dev/null || true
+  python scripts/consolidar_resultados.py || true
 fi
 
 echo "=== Pipeline Completed Successfully ==="
+scontrol release 458,459,461,462,463,464 || true
