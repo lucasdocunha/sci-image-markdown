@@ -58,7 +58,10 @@ class QwenVLTableExtractor:
             padding=True,
             return_tensors="pt"
         )
-        inputs.pop("mm_token_type_ids", None)
+        # TeleOCR does not accept mm_token_type_ids in forward/generate, while Qwen3/3.5 requires it
+        is_teleocr = "teleocr" in type(self.model).__name__.lower()
+        if is_teleocr:
+            inputs.pop("mm_token_type_ids", None)
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
 
         gen_kwargs = {

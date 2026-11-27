@@ -8,10 +8,11 @@ from qwen_vl_utils import process_vision_info
 
 
 class QwenVLDataCollator:
-    """Collates and tokenizes multimodal batches for Qwen2.5-VL fine-tuning."""
+    """Collates and tokenizes multimodal batches for Qwen2.5-VL and Qwen3/Qwen3.5 fine-tuning."""
 
-    def __init__(self, processor: Any):
+    def __init__(self, processor: Any, is_teleocr: bool = False):
         self.processor = processor
+        self.is_teleocr = is_teleocr
 
     def __call__(self, batch: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
         texts = []
@@ -41,7 +42,10 @@ class QwenVLDataCollator:
             padding=True,
             return_tensors="pt"
         )
-        inputs.pop("mm_token_type_ids", None)
+        # TeleOCR's custom remote forward() does not accept mm_token_type_ids.
+        # However, Qwen3 / Qwen3.5 (LightOnOCR) strictly requires mm_token_type_ids for M-RoPE.
+        if self.is_teleocr:
+            inputs.pop("mm_token_type_ids", None)
 
         labels = inputs["input_ids"].clone()
 

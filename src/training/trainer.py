@@ -145,7 +145,11 @@ class SciImageTableTrainer:
         self.training_args = build_training_arguments(cfg)
         if self.eval_dataset is None:
             self.training_args.eval_strategy = "no"
-        self.data_collator = QwenVLDataCollator(processor=self.processor)
+
+        m_name = str(cfg.get("model", {}).get("name_or_path", "")).lower()
+        m_type = str(cfg.get("model", {}).get("model_type", "")).lower()
+        is_teleocr = "teleocr" in m_name or "teleocr" in m_type
+        self.data_collator = QwenVLDataCollator(processor=self.processor, is_teleocr=is_teleocr)
 
         # Build ICDAR metric loss module if configured
         t_cfg = cfg.get("training", {})
