@@ -10,7 +10,7 @@ Avaliação realizada no split de **teste oficial (373 figuras, 605 painéis)** 
 
 | Checkpoint | Métrica Local (antigo) | Oficial (`weighted`) | RMS Oficial | TEDS Oficial | Painéis Avaliados | Tabelas Extras | Status |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| LightOnOCR-3-4B + Caption (ICDAR Loss v3) | - | - | - | - | - | - | Pendente |
+| LightOnOCR-3-4B + Caption (ICDAR Loss v3) | - | 37.50 | 14.15 | 60.85 | 605 | 53 | Concluído |
 | LightOnOCR-3-4B (Recorde) | 52,32 | 38.18 | 15.73 | 60.62 | 605 | 29 | Concluído |
 | LightOnOCR-3-4B + Synth15 | 51,72 | 37.30 | 14.91 | 59.69 | 605 | 69 | Concluído |
 | Qwen2.5-VL-7B-Instruct | 52,11 | 36.15 | 13.46 | 58.85 | 605 | 117 | Concluído |

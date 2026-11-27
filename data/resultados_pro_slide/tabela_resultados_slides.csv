@@ -1,5 +1,5 @@
 Checkpoint,ID,Local (antigo),Local (re-executado),Oficial (weighted),RMS oficial,TEDS oficial,n_panels,extra_tables,Status
-LightOnOCR-3-4B + Caption (ICDAR Loss v3),lightonocr_3_4b_caption_icdar,-,-,-,-,-,-,-,Pendente
+LightOnOCR-3-4B + Caption (ICDAR Loss v3),lightonocr_3_4b_caption_icdar,-,52.15,37.50,14.15,60.85,605,53,Concluído
 LightOnOCR-3-4B (Recorde),lightonocr_52_32,"52,32",52.60,38.18,15.73,60.62,605,29,Concluído
 LightOnOCR-3-4B + Synth15,lightonocr_synth15,"51,72",51.72,37.30,14.91,59.69,605,69,Concluído
 Qwen2.5-VL-7B-Instruct,qwen7b,"52,11",49.97,36.15,13.46,58.85,605,117,Concluído
